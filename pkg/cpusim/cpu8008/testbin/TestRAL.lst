@@ -1,0 +1,46 @@
+ AS V1.42 Beta [Bld 247] - Source File TestRAL.asm - Page 1 - 07/12/2025 08:06:56 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 06 80               	MVI	A,80h
+       6/       2 : 12                  	RAL
+       7/       3 : 00                  	HLT
+       8/       4 :                     
+ AS V1.42 Beta [Bld 247] - Source File TestRAL.asm - Page 2 - 07/12/2025 08:06:56 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                     8008E - |
+*MOMCPUNAME :             "8008NEW" - | *NESTMAX :                      100 - |
+*RELAXED :                        0 - | *TIME :               "08:06:56 PM" - |
+*TRUE :                           1 - | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     16 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestRAL.asm - Page 3 - 07/12/2025 08:06:56 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+      8 lines source file
+      1 pass
+      0 errors
+      0 warnings

@@ -1,0 +1,58 @@
+ AS V1.42 Beta [Bld 247] - Source File TestLogicalReg.asm - Page 1 - 07/12/2025 07:44:05 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 06 12               	MVI A, 12H
+       6/       2 : 0E 03               	MVI B, 03H
+       7/       4 : A1                  	ANA B
+       8/       5 : C8                  	MOV B,A
+       9/       6 : 06 34               	MVI A, 34H
+      10/       8 : 16 01               	MVI C, 01H
+      11/       A : B2                  	ORA C
+      12/       B : D0                  	MOV C,A
+      13/       C : 06 56               	MVI A, 56H
+      14/       E : 1E 33               	MVI D, 33H
+      15/      10 : AB                  	XRA D
+      16/      11 : D8                  	MOV D,A
+      17/      12 : 06 78               	MVI A, 78H
+      18/      14 : 3C 78               	CPI 78H
+      19/      16 : 00                  	HLT
+      20/      17 :                     
+ AS V1.42 Beta [Bld 247] - Source File TestLogicalReg.asm - Page 2 - 07/12/2025 07:44:05 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                     8008E - |
+*MOMCPUNAME :             "8008NEW" - | *NESTMAX :                      100 - |
+*RELAXED :                        0 - | *TIME :               "07:44:05 PM" - |
+*TRUE :                           1 - | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     16 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestLogicalReg.asm - Page 3 - 07/12/2025 07:44:05 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+     20 lines source file
+      1 pass
+      0 errors
+      0 warnings

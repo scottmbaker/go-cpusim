@@ -1,0 +1,51 @@
+ AS V1.42 Beta [Bld 247] - Source File TestMOVM.asm - Page 1 - 07/12/2025 07:44:05 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 2E 12               	MVI	H,12H
+       6/       2 : 36 34               	MVI L,34H
+       7/       4 : C7                  	MOV A,M
+       8/       5 : 04 07               	ADI 7
+       9/       7 : 2E 12               	MVI H,12H
+      10/       9 : 36 35               	MVI L,35H
+      11/       B : F8                  	MOV M,A
+      12/       C : 00                  	HLT
+      13/       D :                     
+ AS V1.42 Beta [Bld 247] - Source File TestMOVM.asm - Page 2 - 07/12/2025 07:44:05 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                     8008E - |
+*MOMCPUNAME :             "8008NEW" - | *NESTMAX :                      100 - |
+*RELAXED :                        0 - | *TIME :               "07:44:05 PM" - |
+*TRUE :                           1 - | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     16 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestMOVM.asm - Page 3 - 07/12/2025 07:44:05 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+     13 lines source file
+      1 pass
+      0 errors
+      0 warnings

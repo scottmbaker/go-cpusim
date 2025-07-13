@@ -1,0 +1,53 @@
+	cpu 8008new             ; use "new" 8008 mnemonics
+	radix 10                ; use base 10 for numbers
+	org 0
+	    
+	MVI A,0A0h
+	OUT 08H
+	MVI A,0A1h
+	OUT 09H
+	MVI A,0A2h
+	OUT 0AH
+	MVI A,0A3h
+	OUT 0BH
+	MVI A,0A4h
+	OUT 0CH
+	MVI A,0A5h
+	OUT 0DH
+	MVI A,0A6h
+	OUT 0EH
+	MVI A,0A7h
+	OUT 0FH
+	MVI A,0A8h
+	OUT 10H
+	MVI A,0A9h
+	OUT 11H
+	MVI A,0AAh
+	OUT 12H
+	MVI A,0ABh
+	OUT 13H
+	MVI A,0ACh
+	OUT 14H
+	MVI A,0ADh
+	OUT 15H
+	MVI A,0AEh
+	OUT 16H
+	MVI A,0AFh
+	OUT 17H
+	MVI A,0B0h
+	OUT 18H
+	MVI A,0B1h
+	OUT 19H
+	MVI A,0B2h
+	OUT 1AH
+	MVI A,0B3h
+	OUT 1BH
+	MVI A,0B4h
+	OUT 1CH
+	MVI A,0B5h
+	OUT 1DH
+	MVI A,0B6h
+	OUT 1EH
+	MVI A,0B7h
+	OUT 1FH
+	HLT

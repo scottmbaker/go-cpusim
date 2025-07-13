@@ -1,0 +1,57 @@
+ AS V1.42 Beta [Bld 247] - Source File TestMOV.asm - Page 1 - 07/12/2025 07:44:05 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 06 12               	MVI A, 12H
+       6/       2 : C8                  	MOV B,A
+       7/       3 : 08                  	INR B
+       8/       4 : D1                  	MOV C,B
+       9/       5 : 10                  	INR C
+      10/       6 : DA                  	MOV D,C
+      11/       7 : 18                  	INR D
+      12/       8 : E3                  	MOV E,D
+      13/       9 : 20                  	INR E
+      14/       A : EC                  	MOV H,E
+      15/       B : 28                  	INR H
+      16/       C : F5                  	MOV L,H
+      17/       D : 30                  	INR L
+      18/       E : 00                  	HLT
+      19/       F :                     
+ AS V1.42 Beta [Bld 247] - Source File TestMOV.asm - Page 2 - 07/12/2025 07:44:05 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                     8008E - |
+*MOMCPUNAME :             "8008NEW" - | *NESTMAX :                      100 - |
+*RELAXED :                        0 - | *TIME :               "07:44:05 PM" - |
+*TRUE :                           1 - | *VERSION :                     142F - |
+*Z80SYNTAX :                      0 - |
+
+     16 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestMOV.asm - Page 3 - 07/12/2025 07:44:05 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.01 seconds assembly time
+
+     19 lines source file
+      1 pass
+      0 errors
+      0 warnings

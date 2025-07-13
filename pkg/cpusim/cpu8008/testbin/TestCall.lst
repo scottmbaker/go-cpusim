@@ -1,0 +1,84 @@
+ AS V1.42 Beta [Bld 247] - Source File TestCall.asm - Page 1 - 07/12/2025 07:44:05 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 1E 45               	MVI D, 45H
+       6/       2 : 26 54               	MVI E, 54H
+       7/       4 : 46 08 00            	CALL L1
+       8/       7 : 00                  	HLT
+       9/       8 :                     L1:
+      10/       8 : 18                  	INR D
+      11/       9 : 46 0E 00            	CALL L2
+      12/       C : 20                  	INR E
+      13/       D : 07                  	RET
+      14/       E :                     L2:
+      15/       E : 18                  	INR D
+      16/       F : 46 14 00            	CALL L3
+      17/      12 : 20                  	INR E
+      18/      13 : 07                  	RET
+      19/      14 :                     L3:
+      20/      14 : 18                  	INR D
+      21/      15 : 46 1A 00            	CALL L4
+      22/      18 : 20                  	INR E
+      23/      19 : 07                  	RET
+      24/      1A :                     L4:
+      25/      1A : 18                  	INR D
+      26/      1B : 46 20 00            	CALL L5
+      27/      1E : 20                  	INR E
+      28/      1F : 07                  	RET
+      29/      20 :                     L5:
+      30/      20 : 18                  	INR D
+      31/      21 : 46 26 00            	CALL L6
+      32/      24 : 20                  	INR E
+      33/      25 : 07                  	RET
+      34/      26 :                     L6:
+      35/      26 : 18                  	INR D
+      36/      27 : 46 2C 00            	CALL L7
+      37/      2A : 20                  	INR E
+      38/      2B : 07                  	RET
+      39/      2C :                     L7:
+      40/      2C : CB                  	MOV B,D
+      41/      2D : D4                  	MOV C,E
+      42/      2E : 07                  	RET
+      43/      2F :                     
+ AS V1.42 Beta [Bld 247] - Source File TestCall.asm - Page 2 - 07/12/2025 07:44:05 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - |  L1 :                             8 C |
+ L2 :                            0E C |  L3 :                            14 C |
+ L4 :                            1A C |  L5 :                            20 C |
+ L6 :                            26 C |  L7 :                            2C C |
+*LISTON :                         1 - | *MACEXP :                         7 - |
+*MOMCPU :                     8008E - | *MOMCPUNAME :             "8008NEW" - |
+*NESTMAX :                      100 - | *RELAXED :                        0 - |
+*TIME :               "07:44:05 PM" - | *TRUE :                           1 - |
+*VERSION :                     142F - | *Z80SYNTAX :                      0 - |
+
+     23 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestCall.asm - Page 3 - 07/12/2025 07:44:05 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.00 seconds assembly time
+
+     43 lines source file
+      2 passes
+      0 errors
+      0 warnings

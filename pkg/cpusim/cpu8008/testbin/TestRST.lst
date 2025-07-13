@@ -1,0 +1,74 @@
+ AS V1.42 Beta [Bld 247] - Source File TestRST.asm - Page 1 - 07/12/2025 07:44:05 PM
+
+
+       1/       0 :                     	cpu 8008new             ; use "new" 8008 mnemonics
+       2/       0 :                     	radix 10                ; use base 10 for numbers
+       3/       0 :                     	org 0
+       4/       0 :                     	    
+       5/       0 : 44 3B 00            	JMP L1
+       6/       8 :                     	ORG 8h
+       7/       8 : 0E 02               	MVI	B,2
+       8/       A : 07                  	RET
+       9/      10 :                     	ORG 10h
+      10/      10 : 16 03               	MVI C,3
+      11/      12 : 07                  	RET
+      12/      18 :                     	ORG 18h
+      13/      18 : 1E 04               	MVI D,4
+      14/      1A : 07                  	RET
+      15/      20 :                     	ORG 20h
+      16/      20 : 26 05               	MVI E,5
+      17/      22 : 07                  	RET
+      18/      28 :                     	ORG 28h
+      19/      28 : 2E 06               	MVI H,6
+      20/      2A : 07                  	RET
+      21/      30 :                     	ORG 30h
+      22/      30 : 36 07               	MVI L,7
+      23/      32 : 07                  	RET
+      24/      38 :                     	ORG 38h
+      25/      38 : 06 08               	MVI A,8
+      26/      3A : 07                  	RET
+      27/      3B :                     L1:
+      28/      3B : 0D                  	RST 1
+      29/      3C : 15                  	RST 2
+      30/      3D : 1D                  	RST 3
+      31/      3E : 25                  	RST 4
+      32/      3F : 2D                  	RST 5
+      33/      40 : 35                  	RST 6
+      34/      41 : 3D                  	RST 7
+      35/      42 : 00                  	HLT
+      36/      43 :                     
+ AS V1.42 Beta [Bld 247] - Source File TestRST.asm - Page 2 - 07/12/2025 07:44:05 PM
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*CASESENSITIVE :                  0 - | *CONSTPI :        3.141592653589793 - |
+*DATE :                "07/12/2025" - | *FALSE :                          0 - |
+*HAS64 :                          1 - |  L1 :                            3B C |
+*LISTON :                         1 - | *MACEXP :                         7 - |
+*MOMCPU :                     8008E - | *MOMCPUNAME :             "8008NEW" - |
+*NESTMAX :                      100 - | *RELAXED :                        0 - |
+*TIME :               "07:44:05 PM" - | *TRUE :                           1 - |
+*VERSION :                     142F - | *Z80SYNTAX :                      0 - |
+
+     17 symbols
+     16 unused symbols
+
+ AS V1.42 Beta [Bld 247] - Source File TestRST.asm - Page 3 - 07/12/2025 07:44:05 PM
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+
+0.01 seconds assembly time
+
+     36 lines source file
+      2 passes
+      0 errors
+      0 warnings
