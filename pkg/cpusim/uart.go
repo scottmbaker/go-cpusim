@@ -10,10 +10,10 @@ import (
 type UART struct {
 	Sim                 *CpuSim
 	Name                string
-	DataReadAddress     uint16
-	DataWriteAddress    uint16
-	ControlReadAddress  uint16
-	ControlWriteAddress uint16
+	DataReadAddress     Address
+	DataWriteAddress    Address
+	ControlReadAddress  Address
+	ControlWriteAddress Address
 	Enabler             EnablerInterface
 	Keybuffer           []byte // Simulated key buffer for UART
 	RawMode             bool   // Whether to run in raw mode
@@ -24,7 +24,7 @@ func (u *UART) GetName() string {
 	return u.Name
 }
 
-func (u *UART) HasAddress(address uint16) bool {
+func (u *UART) HasAddress(address Address) bool {
 	if !u.Enabler.Bool() {
 		return false
 	}
@@ -32,7 +32,7 @@ func (u *UART) HasAddress(address uint16) bool {
 		address == u.ControlReadAddress || address == u.ControlWriteAddress)
 }
 
-func (u *UART) Read(address uint16) (byte, error) {
+func (u *UART) Read(address Address) (byte, error) {
 	if !u.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
@@ -59,7 +59,7 @@ func (u *UART) Read(address uint16) (byte, error) {
 	return 0, nil
 }
 
-func (u *UART) Write(address uint16, value byte) error {
+func (u *UART) Write(address Address, value byte) error {
 	if !u.HasAddress(address) {
 		return &ErrInvalidAddress{Address: address}
 	}
@@ -116,7 +116,7 @@ func (u *UART) RestoreTerminal() {
 	}
 }
 
-func NewUART(sim *CpuSim, name string, dataReadAddress, dataWriteAddress, controlReadAddress, controlWriteAddress uint16, enabler EnablerInterface) *UART {
+func NewUART(sim *CpuSim, name string, dataReadAddress, dataWriteAddress, controlReadAddress, controlWriteAddress Address, enabler EnablerInterface) *UART {
 	return &UART{
 		Sim:                 sim,
 		Name:                name,

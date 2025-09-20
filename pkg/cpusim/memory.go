@@ -8,8 +8,8 @@ import (
 type Memory struct {
 	Sim          *CpuSim
 	Name         string
-	StartAddress uint16
-	EndAddress   uint16
+	StartAddress Address
+	EndAddress   Address
 	AddressBits  int
 	ReadOnly     bool
 	Contents     []byte
@@ -20,14 +20,14 @@ func (mem *Memory) GetName() string {
 	return mem.Name
 }
 
-func (mem *Memory) HasAddress(address uint16) bool {
+func (mem *Memory) HasAddress(address Address) bool {
 	if !mem.Enabler.Bool() {
 		return false
 	}
 	return (address >= mem.StartAddress) && (address <= mem.EndAddress)
 }
 
-func (mem *Memory) Read(address uint16) (byte, error) {
+func (mem *Memory) Read(address Address) (byte, error) {
 	if !mem.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
@@ -35,7 +35,7 @@ func (mem *Memory) Read(address uint16) (byte, error) {
 	return mem.Contents[index], nil
 }
 
-func (mem *Memory) Write(address uint16, value byte) error {
+func (mem *Memory) Write(address Address, value byte) error {
 	if !mem.HasAddress(address) {
 		return &ErrInvalidAddress{Address: address}
 	}
@@ -63,7 +63,7 @@ func (mem *Memory) Load(filename string) error {
 	return nil
 }
 
-func NewMemory(sim *CpuSim, name string, startAddress, endAddress uint16, addressBits int, readonly bool, enabler EnablerInterface) *Memory {
+func NewMemory(sim *CpuSim, name string, startAddress, endAddress Address, addressBits int, readonly bool, enabler EnablerInterface) *Memory {
 	mem := &Memory{
 		Sim:          sim,
 		Name:         name,

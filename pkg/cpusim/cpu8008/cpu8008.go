@@ -141,7 +141,7 @@ func (cpu *CPU8008) GetReg(register int) (byte, error) {
 		return 0, &cpusim.ErrInvalidRegister{Device: cpu, Register: register}
 	}
 	if register == REG_M {
-		return cpu.Sim.ReadMemory((uint16(cpu.Registers[REG_H]) << 8) | uint16(cpu.Registers[REG_L]))
+		return cpu.Sim.ReadMemory((cpusim.Address(cpu.Registers[REG_H]) << 8) | cpusim.Address(cpu.Registers[REG_L]))
 	}
 	return cpu.Registers[register], nil
 }
@@ -151,7 +151,7 @@ func (cpu *CPU8008) SetReg(register int, value byte) error {
 		return &cpusim.ErrInvalidRegister{Register: register}
 	}
 	if register == REG_M {
-		return cpu.Sim.WriteMemory((uint16(cpu.Registers[REG_H])<<8)|uint16(cpu.Registers[REG_L]), value)
+		return cpu.Sim.WriteMemory((cpusim.Address(cpu.Registers[REG_H])<<8)|cpusim.Address(cpu.Registers[REG_L]), value)
 	}
 	cpu.Registers[register] = value
 	return nil
@@ -175,7 +175,7 @@ func (cpu *CPU8008) ExecuteLoadImmediate(opCode byte, value byte) error {
 }
 
 func (cpu *CPU8008) FetchOpcode() (byte, error) {
-	opCode, err := cpu.Sim.ReadMemory(cpu.PC)
+	opCode, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
 		return 0, err
 	}
@@ -184,12 +184,12 @@ func (cpu *CPU8008) FetchOpcode() (byte, error) {
 }
 
 func (cpu *CPU8008) FetchAddr() (uint16, error) {
-	addrLow, err := cpu.Sim.ReadMemory(cpu.PC)
+	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
 		return 0, err
 	}
 	cpu.PC++
-	addrHigh, err := cpu.Sim.ReadMemory(cpu.PC)
+	addrHigh, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
 		return 0, err
 	}
@@ -444,7 +444,7 @@ func (cpu *CPU8008) ExecuteRes(n byte) error {
 
 func (cpu *CPU8008) ExecutePort(port byte) error {
 	if (port & 0x18) == 0 {
-		val, err := cpu.Sim.ReadPort(uint16(port))
+		val, err := cpu.Sim.ReadPort(cpusim.Address(port))
 		if err != nil {
 			return err
 		}
@@ -458,7 +458,7 @@ func (cpu *CPU8008) ExecutePort(port byte) error {
 		if err != nil {
 			return err
 		}
-		err = cpu.Sim.WritePort(uint16(port), val)
+		err = cpu.Sim.WritePort(cpusim.Address(port), val)
 		if err != nil {
 			return err
 		}

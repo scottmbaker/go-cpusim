@@ -35,23 +35,6 @@ const (
 	D7 = 7
 )
 
-type CpuInterface interface {
-	SetReg(register int, value byte) error
-	GetReg(register int) (byte, error)
-	String() string
-	Run() error
-}
-
-type MemoryInterface interface {
-	HasAddress(address uint16) bool
-	Read(address uint16) (byte, error)
-	Write(address uint16, value byte) error
-}
-
-type MapperInterface interface {
-	Map(address uint16) (uint16, error)
-}
-
 type CpuSim struct {
 	CPU     []CpuInterface
 	Memory  []MemoryInterface
@@ -103,7 +86,7 @@ func (sim *CpuSim) Start(wg *sync.WaitGroup) {
 	}
 }
 
-func (sim *CpuSim) WriteMemory(address uint16, value byte) error {
+func (sim *CpuSim) WriteMemory(address Address, value byte) error {
 	for _, mapper := range sim.Mappers {
 		var err error
 		address, err = mapper.Map(address)
@@ -119,7 +102,7 @@ func (sim *CpuSim) WriteMemory(address uint16, value byte) error {
 	return nil
 }
 
-func (sim *CpuSim) ReadMemory(address uint16) (byte, error) {
+func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 	for _, mapper := range sim.Mappers {
 		var err error
 		address, err = mapper.Map(address)
@@ -135,7 +118,7 @@ func (sim *CpuSim) ReadMemory(address uint16) (byte, error) {
 	return 0, nil
 }
 
-func (sim *CpuSim) ReadPort(port uint16) (byte, error) {
+func (sim *CpuSim) ReadPort(port Address) (byte, error) {
 	for _, p := range sim.Ports {
 		if p.HasAddress(port) {
 			return p.Read(port)
@@ -144,7 +127,7 @@ func (sim *CpuSim) ReadPort(port uint16) (byte, error) {
 	return 0, nil
 }
 
-func (sim *CpuSim) WritePort(port uint16, value byte) error {
+func (sim *CpuSim) WritePort(port Address, value byte) error {
 	for _, p := range sim.Ports {
 		if p.HasAddress(port) {
 			return p.Write(port, value)

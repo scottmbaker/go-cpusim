@@ -22,7 +22,7 @@ func (e *ErrInvalidRegister) Error() string {
 }
 
 type ErrInvalidAddress struct {
-	Address uint16
+	Address Address
 	Device  DeviceInterface
 }
 

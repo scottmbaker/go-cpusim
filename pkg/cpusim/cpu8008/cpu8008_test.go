@@ -23,18 +23,18 @@ type TestPort struct {
 	out [32]byte // the first 8 are not used
 }
 
-func (p *TestPort) HasAddress(address uint16) bool {
+func (p *TestPort) HasAddress(address cpusim.Address) bool {
 	return true
 }
 
-func (p *TestPort) Read(address uint16) (byte, error) {
+func (p *TestPort) Read(address cpusim.Address) (byte, error) {
 	if address < 8 {
 		return p.in[address], nil
 	}
 	return 0, &cpusim.ErrInvalidAddress{Address: address}
 }
 
-func (p *TestPort) Write(address uint16, value byte) error {
+func (p *TestPort) Write(address cpusim.Address, value byte) error {
 	if (address < 8) || (address >= 32) {
 		return &cpusim.ErrInvalidAddress{Address: address}
 	}
