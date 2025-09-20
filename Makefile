@@ -8,7 +8,7 @@ build8008:
 	go build -o build/_output/cpusim8008 ./cmd/cpusim8008
 
 .PHONY: build4004
-build8008:
+build4004:
 	go build -o build/_output/cpusim4004 ./cmd/cpusim4004
 
 .PHONE: demo

@@ -9,7 +9,7 @@ type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
 	Registers [21]byte       // 4-bit registers
-	Stack     [3]uint8
+	Stack     [3]uint16
 	SP        byte
 	PC        uint16 // Program Counter
 	Halted    bool   // Flag to indicate if the CPU is halted
@@ -56,7 +56,7 @@ const (
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
 		Name:      name,
-		Registers: [17]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Registers: [21]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		Stack:     [3]uint16{0, 0, 0},
 		SP:        0,
 		PC:        0, // Program Counter
@@ -76,7 +76,7 @@ func (cpu *CPU4004) GetName() string {
 	return cpu.Name
 }
 
-func (cpu *CPU400) GetRegName(reg int) string {
+func (cpu *CPU4004) GetRegName(reg int) string {
 	switch reg {
 	case REG_R0:
 		return "R0"
@@ -213,7 +213,7 @@ func (cpu *CPU4004) ExecuteExchange(opCode byte) error {
 		return err
 	}
 	cpu.DebugExchange(REG_ACCUM, srcReg)
-	err := cpu.SetReg(srcReg, accVal)
+	err = cpu.SetReg(srcReg, accVal)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,6 @@ func (cpu *CPU4004) ExecuteExchange(opCode byte) error {
 }
 
 func (cpu *CPU4004) ExecuteLoadImmediate(opCode byte, value byte) error {
-	destReg := int(opCode & 0x0F)
 	cpu.DebugMoveImmediate(REG_ACCUM, value)
 	return cpu.SetReg(REG_ACCUM, value)
 }
@@ -231,7 +230,7 @@ func (cpu *CPU4004) ExecuteFetchImmediate(opCode byte, value byte) error {
 	cpu.PC++
 	value, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
-		return 0, err
+		return err
 	}
 	cpu.DebugFetchImmediate(destPair, value)
 	return cpu.SetPair(destPair, value)
@@ -246,7 +245,7 @@ func (cpu *CPU4004) FetchOpcode() (byte, error) {
 	return opCode, nil
 }
 
-func (cpu *CPU4004) FetchAddr(optCode byte) (uint16, error) {
+func (cpu *CPU4004) FetchAddr(opCode byte) (uint16, error) {
 	addrHigh := int(opCode & 0x0F)
 	cpu.PC++
 	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
@@ -307,7 +306,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 
 	reg := int(opCode & 0x07)
 
-	val, err = cpu.GetReg(reg)
+	val, err := cpu.GetReg(reg)
 	if err != nil {
 		return err
 	}
@@ -318,13 +317,13 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	case OP_ADD:
 		work = work + int(val)
 		carryBit, _ := cpu.GetReg(FLAG_CARRY)
-		if (op == OP_AC) && (carryBit != 0) {
+		if carryBit != 0 {
 			work = work + 1
 		}
 	case OP_SUB:
 		work = work - int(val)
 		carryBit, _ := cpu.GetReg(FLAG_CARRY)
-		if (op == OP_SC) && (carryBit != 0) {
+		if carryBit != 0 {
 			work = work - 1
 		}
 	}
@@ -371,7 +370,7 @@ func (cpu *CPU4004) ExecuteJump(addr uint16, conditional bool, flag int, istrue 
 	return nil
 }
 
-func (cpu *CPU4004) ExecuteBBL(value int) error {
+func (cpu *CPU4004) ExecuteBBL(value byte) error {
 	if cpu.SP == 0 {
 		return fmt.Errorf("stack underflow")
 	}
@@ -382,11 +381,9 @@ func (cpu *CPU4004) ExecuteBBL(value int) error {
 	}
 	cpu.PC = cpu.Stack[cpu.SP]
 
-	err := cpu.SetReg(FLAG_ACCUM, value)
-
 	cpu.DebugRet(value)
 
-	return nil
+	return cpu.SetReg(REG_ACCUM, value)
 }
 
 func (cpu *CPU4004) Execute() error {
@@ -414,55 +411,55 @@ func (cpu *CPU4004) Execute() error {
 		return nil
 	}
 
-	if opcode&0xF1 == 0x20 {
+	if opCode&0xF1 == 0x20 {
 		return cpu.ExecuteFetchImmediate(opCode, 0)
 	}
 
-	if opcode&0xF1 == 0x21 {
+	if opCode&0xF1 == 0x21 {
 		// SRC
 	}
 
-	if opcode&0xF1 == 0x30 {
+	if opCode&0xF1 == 0x30 {
 		// FIN
 	}
 
-	if opcode&0xF1 == 0x31 {
+	if opCode&0xF1 == 0x31 {
 		// JIN
 	}
 
-	if opcode&0xF0 == 0x40 {
+	if opCode&0xF0 == 0x40 {
 		// JUN
 	}
 
-	if opcode&0xF0 == 0x50 {
+	if opCode&0xF0 == 0x50 {
 		// JMS
 	}
 
-	if opcode&0xF0 == 0x60 {
+	if opCode&0xF0 == 0x60 {
 		return cpu.ExecuteIncDec(opCode, 1)
 	}
 
-	if opecode&0xF0 == 0x70 {
+	if opCode&0xF0 == 0x70 {
 		// ISZ
 	}
 
-	if opcode&0xF0 == 0x80 {
+	if opCode&0xF0 == 0x80 {
 		return cpu.ExecuteAccumulator(opCode, OP_ADD)
 	}
 
-	if opcode&0xF0 == 0x90 {
+	if opCode&0xF0 == 0x90 {
 		return cpu.ExecuteAccumulator(opCode, OP_SUB)
 	}
 
-	if opcode&0xF0 == 0xA0 {
+	if opCode&0xF0 == 0xA0 {
 		return cpu.ExecuteLoad(opCode)
 	}
 
-	if opcode&0xF0 == 0xB0 {
+	if opCode&0xF0 == 0xB0 {
 		return cpu.ExecuteExchange(opCode)
 	}
 
-	if opcode&0xF0 == 0xC0) {
+	if opCode&0xF0 == 0xC0 {
 		return cpu.ExecuteBBL(opCode & 0x0F)
 	}
 

@@ -3,7 +3,7 @@ package main
 // go-cpusim
 // Scott Baker
 //
-// An 4004 CPU similator written in Go.
+// A 4004 CPU similator written in Go.
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ var (
 	debug       bool
 	romFilename string
 	rootCmd     = &cobra.Command{
-		Use:   "cpusim8008",
+		Use:   "cpusim4004",
 		Short: "scott's 4004 cpu simulator",
 		Long:  "A simulator for the 4004 CPU. For a quick demo, try \"cpusim -f roms/sbc-8251.rom\"",
 	}
@@ -36,15 +36,15 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.SetDebug(debug)
 
 	// Create an 8008 CPU and attach it to the emulator
-	cpu := cpu8008.New4004(sim, "cpu")
+	cpu := cpu4004.New4004(sim, "cpu")
 	sim.AddCPU(cpu)
 
 	mapper := cpusim.New74670(sim, "mapper", 0x0C, cpusim.A12, cpusim.D0, cpusim.A12, cpusim.A13, cpusim.A14, cpusim.A15, &cpusim.AlwaysEnabled)
 	sim.AddMapper(mapper)
 	sim.AddPort(mapper)
 
-	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0xFFFF, 16, false, &ramRomEnable.HiEnable)
-	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0xFFFF, 16, true, &ramRomEnable.LoEnable)
+	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0xFFFF, 16, false, &cpusim.TrueEnabler{})
+	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0xFFFF, 16, true, &cpusim.TrueEnabler{})
 	sim.AddMemory(ram)
 	sim.AddMemory(rom)
 
