@@ -11,6 +11,7 @@ type Map670 struct {
 	Sim                *CpuSim
 	Name               string
 	MapperAddress      Address
+	SourceMask         Address
 	SourceBit          int
 	SourceData         int
 	DestBit            [8]int
@@ -31,7 +32,7 @@ func (m *Map670) HasAddress(address Address) bool {
 }
 
 func (m *Map670) Write(address Address, value byte) error {
-	index := (address - m.MapperAddress) & 0x03
+	index := (address - m.MapperAddress) & m.SourceMask
 	m.Contents[index] = value
 	//fmt.Printf("MAP 670: Writing value %02X to address %04X\n", value, address)
 	return nil
@@ -70,6 +71,7 @@ func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, 
 		Sim:           sim,
 		Name:          name,
 		MapperAddress: address,
+		SourceMask:    0x03,
 		SourceBit:     sourceBit,
 		SourceData:    sourceData,
 		DestBit:       [8]int{destBit0, destBit1, destBit2, destBit3, -1, -1, -1, -1},
