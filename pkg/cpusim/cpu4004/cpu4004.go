@@ -8,8 +8,9 @@ import (
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
-	Registers [21]byte       // 4-bit registers
+	Registers [20]byte       // 4-bit registers
 	Stack     [3]uint16
+	RC        byte
 	SP        byte
 	PC        uint16 // Program Counter
 	Halted    bool   // Flag to indicate if the CPU is halted
@@ -35,10 +36,9 @@ const (
 	REG_R15   = 15
 	REG_ACCUM = 16
 	REG_CL    = 17
-	REG_RC    = 18
 
-	FLAG_CARRY = 19
-	FLAG_ZERO  = 20
+	FLAG_CARRY = 18
+	FLAG_ZERO  = 19
 
 	PAIR_P0 = 0
 	PAIR_P1 = 1
@@ -49,6 +49,8 @@ const (
 	PAIR_P6 = 6
 	PAIR_P7 = 7
 
+	PAIR_RC = 8
+
 	OP_ADD = 0
 	OP_SUB = 1
 )
@@ -56,7 +58,7 @@ const (
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
 		Name:      name,
-		Registers: [21]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Registers: [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		Stack:     [3]uint16{0, 0, 0},
 		SP:        0,
 		PC:        0, // Program Counter
@@ -114,8 +116,6 @@ func (cpu *CPU4004) GetRegName(reg int) string {
 		return "ACCUM"
 	case REG_CL:
 		return "CL"
-	case REG_RC:
-		return "RC"
 	case FLAG_CARRY:
 		return "C"
 	case FLAG_ZERO:
@@ -143,6 +143,8 @@ func (cpu *CPU4004) GetPairName(pair int) string {
 		return "P6"
 	case PAIR_P7:
 		return "P7"
+	case PAIR_RC:
+		return "RC"
 	default:
 		return fmt.Sprintf("P%d", pair)
 	}
@@ -164,6 +166,10 @@ func (cpu *CPU4004) SetReg(register int, value byte) error {
 }
 
 func (cpu *CPU4004) GetPair(pair int) (byte, error) {
+	if pair == PAIR_RC {
+		return cpu.RC, nil
+	}
+
 	if pair < 0 || pair >= 8 {
 		return 0, &cpusim.ErrInvalidRegister{Device: cpu, Register: pair}
 	}
@@ -179,6 +185,11 @@ func (cpu *CPU4004) GetPair(pair int) (byte, error) {
 }
 
 func (cpu *CPU4004) SetPair(pair int, value byte) error {
+	if pair == PAIR_RC {
+		cpu.RC = value
+		return nil
+	}
+
 	if pair < 0 || pair >= 8 {
 		return &cpusim.ErrInvalidRegister{Register: pair}
 	}
@@ -190,6 +201,15 @@ func (cpu *CPU4004) SetPair(pair int, value byte) error {
 	}
 	err = cpu.SetReg(pair*2+1, high)
 	return err
+}
+
+func (cpu *CPU4004) ExecuteMovePair(destPair int, srcPair int) error {
+	srcVal, err := cpu.GetPair(srcPair)
+	if err != nil {
+		return err
+	}
+	cpu.DebugMovePair(destPair, srcPair)
+	return cpu.SetPair(destPair, srcVal)
 }
 
 func (cpu *CPU4004) ExecuteLoad(opCode byte) error {
@@ -252,11 +272,10 @@ func (cpu *CPU4004) FetchAddr(opCode byte) (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
-	cpu.PC++
 	return (uint16(addrHigh)<<8 | uint16(addrLow)) & 0x0FFF, nil
 }
 
-func (cpu *CPU4004) ExecuteIncDec(opCode byte, increment int) error {
+func (cpu *CPU4004) ExecuteInc(opCode byte) error {
 	var work int
 
 	reg := int(opCode & 0x0F)
@@ -265,21 +284,56 @@ func (cpu *CPU4004) ExecuteIncDec(opCode byte, increment int) error {
 		return err
 	}
 
-	work = int(value)
-	work += int(increment)
+	work = int(value) + 1
 	err = cpu.UpdateIncFlags(work)
 	if err != nil {
 		return err
 	}
 	value = byte(work & 0x0F)
 
-	cpu.DebugIncDec(reg, increment)
+	cpu.DebugInc(reg)
 
 	return cpu.SetReg(reg, value)
 }
 
+func (cpu *CPU4004) ExecuteIncSkip(opCode byte) error {
+	var work int
+
+	reg := int(opCode & 0x0F)
+	value, err := cpu.GetReg(reg)
+	if err != nil {
+		return err
+	}
+
+	work = int(value) + 1
+	err = cpu.UpdateIncFlags(work)
+	if err != nil {
+		return err
+	}
+
+	cpu.PC++
+	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
+	if err != nil {
+		return err
+	}
+
+	value = byte(work & 0x0F)
+	err = cpu.SetReg(reg, value)
+	if err != nil {
+		return err
+	}
+
+	if value != 0 {
+		cpu.PC = (cpu.PC & 0xFF00) | uint16(addrLow)
+	}
+
+	cpu.DebugIncSkip(reg, addrLow)
+
+	return nil
+}
+
 func (cpu *CPU4004) updateArithFlags(work int) error {
-	err := cpu.SetReg(FLAG_CARRY, toBit((work&0x100) != 0))
+	err := cpu.SetReg(FLAG_CARRY, toBit((work&0x100) != 0)) // XXX TODO: check whether carry needs to be inverted
 	if err != nil {
 		return err
 	}
@@ -417,10 +471,12 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF1 == 0x21 {
 		// SRC
+		return cpu.ExecuteMovePair(PAIR_RC, int((opCode>>1)&0x07))
 	}
 
 	if opCode&0xF1 == 0x30 {
 		// FIN
+		return cpu.ExecuteMovePair(PAIR_P0, int((opCode>>1)&0x07))
 	}
 
 	if opCode&0xF1 == 0x31 {
@@ -429,18 +485,29 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0x40 {
 		// JUN
+		addr, err := cpu.FetchAddr(opCode)
+		if err != nil {
+			return err
+		}
+		return cpu.ExecuteJump(addr, false, 0, false, false)
 	}
 
 	if opCode&0xF0 == 0x50 {
 		// JMS
+		addr, err := cpu.FetchAddr(opCode)
+		if err != nil {
+			return err
+		}
+		return cpu.ExecuteJump(addr, false, 0, false, true)
 	}
 
 	if opCode&0xF0 == 0x60 {
-		return cpu.ExecuteIncDec(opCode, 1)
+		return cpu.ExecuteInc(opCode)
 	}
 
 	if opCode&0xF0 == 0x70 {
 		// ISZ
+		return cpu.ExecuteIncSkip(opCode)
 	}
 
 	if opCode&0xF0 == 0x80 {

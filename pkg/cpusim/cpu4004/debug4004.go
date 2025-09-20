@@ -33,12 +33,24 @@ func (cpu CPU4004) DebugAccumulator(op int, reg int) {
 	}
 }
 
-func (cpu *CPU4004) DebugIncDec(reg int, increment int) {
+func (cpu *CPU4004) DebugInc(reg int) {
 	regName := cpu.GetRegName(reg)
-	if increment > 0 {
-		cpu.DebugInstr("INC %s", regName)
+	cpu.DebugInstr("INC %s", regName)
+}
+
+func (cpu *CPU4004) DebugIncSkip(reg int, addr byte) {
+	regName := cpu.GetRegName(reg)
+	cpu.DebugInstr("ISZ %s, %02xh", regName, addr)
+}
+
+func (cpu *CPU4004) DebugMovePair(dest, src int) {
+	srcName := cpu.GetPairName(src)
+	if dest == PAIR_RC {
+		cpu.DebugInstr("SRC %s", srcName)
+	} else if dest == PAIR_P0 {
+		cpu.DebugInstr("FIM %s", srcName)
 	} else {
-		cpu.DebugInstr("DCR %s", regName)
+		cpu.DebugInstr("??? Move Pair %s", srcName)
 	}
 }
 
