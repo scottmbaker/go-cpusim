@@ -423,7 +423,7 @@ func (cpu *CPU4004) ExecuteRead(opCode byte) error {
 	return cpu.SetReg(REG_ACCUM, value)
 }
 
-func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
+func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int, updateFlags bool) error {
 	var work int
 
 	acc, err := cpu.GetReg(REG_ACCUM)
@@ -487,13 +487,47 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		work = (^work)
 	}
 
-	err = cpu.updateArithFlags(op, work)
-	if err != nil {
-		return err
+	if updateFlags {
+		err = cpu.updateArithFlags(op, work)
+		if err != nil {
+			return err
+		}
 	}
 
 	acc = byte(work & 0x0F)
 	cpu.DebugAccumulator(op, reg)
+
+	return cpu.SetReg(REG_ACCUM, acc)
+}
+
+func (cpu *CPU4004) ExecuteDAA() error {
+	acc, err := cpu.GetReg(REG_ACCUM)
+	if err != nil {
+		return err
+	}
+
+	carryBit, err := cpu.GetReg(FLAG_CARRY)
+	if err != nil {
+		return err
+	}
+
+	work := int(acc)
+	if (work&0x0F) > 9 || (carryBit != 0) {
+		work = work + 6
+	}
+
+	// according to docs, DAA sets carry if there was a carry from the adjustment
+	// ... but DAA does not reset carry
+	if (work & 0x10) != 0 {
+		err = cpu.SetReg(FLAG_CARRY, 1)
+		if err != nil {
+			return err
+		}
+	}
+
+	acc = byte(work & 0x0F)
+
+	cpu.DebugInstr("DAA")
 
 	return cpu.SetReg(REG_ACCUM, acc)
 }
@@ -698,11 +732,11 @@ func (cpu *CPU4004) Execute() error {
 	}
 
 	if opCode&0xF0 == 0x80 {
-		return cpu.ExecuteAccumulator(opCode, OP_ADD)
+		return cpu.ExecuteAccumulator(opCode, OP_ADD, true)
 	}
 
 	if opCode&0xF0 == 0x90 {
-		return cpu.ExecuteAccumulator(opCode, OP_SUB)
+		return cpu.ExecuteAccumulator(opCode, OP_SUB, true)
 	}
 
 	if opCode&0xF0 == 0xA0 {
@@ -725,12 +759,12 @@ func (cpu *CPU4004) Execute() error {
 		return cpu.ExecuteWrite(opCode)
 	}
 
-	if opCode == 0xE8 {
-		return cpu.ExecuteAccumulator(opCode, OP_ADM)
+	if opCode == 0xEB { // do this before the ExecuteRead Check
+		return cpu.ExecuteAccumulator(opCode, OP_ADM, true)
 	}
 
-	if opCode == 0xEB {
-		return cpu.ExecuteAccumulator(opCode, OP_SBM)
+	if opCode == 0xE8 { // do this before the ExecuteRead Check
+		return cpu.ExecuteAccumulator(opCode, OP_SBM, true)
 	}
 
 	if opCode&0xF8 == 0xE8 {
@@ -753,7 +787,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode == 0xF2 {
 		// IAC
-		return cpu.ExecuteAccumulator(opCode, OP_INC)
+		return cpu.ExecuteAccumulator(opCode, OP_INC, false)
 	}
 
 	if opCode == 0xF3 {
@@ -771,7 +805,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode == 0xF4 {
 		// CMA
-		return cpu.ExecuteAccumulator(opCode, OP_CMA)
+		return cpu.ExecuteAccumulator(opCode, OP_CMA, false)
 	}
 
 	if opCode == 0xF5 {
@@ -800,12 +834,12 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode == 0xF8 {
 		// DAC
-		return cpu.ExecuteAccumulator(opCode, OP_DEC)
+		return cpu.ExecuteAccumulator(opCode, OP_DEC, false)
 	}
 
 	if opCode == 0xF9 {
 		// TCS
-		return cpu.ExecuteAccumulator(opCode, OP_TCS)
+		return cpu.ExecuteAccumulator(opCode, OP_TCS, true) // carry is forced to 0
 	}
 
 	if opCode == 0xFA {
@@ -815,12 +849,12 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode == 0xFB {
 		// DAA
-		return cpu.ExecuteAccumulator(opCode, OP_DAA)
+		return cpu.ExecuteDAA()
 	}
 
 	if opCode == 0xFC {
 		// KBP
-		return cpu.ExecuteAccumulator(opCode, OP_KBP)
+		return cpu.ExecuteAccumulator(opCode, OP_KBP, false)
 	}
 
 	if opCode == 0xFD {

@@ -392,6 +392,35 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 
+func (s *Cpu4004Suite) TestSBM() {
+	s.AssembleAndLoad(`
+FIM P7, 00H
+SRC P7
+LD R1
+WRM
+LD R2
+CLC
+SBM
+HLT
+`)
+	s.cpu.Registers[REG_R1] = 7
+	s.cpu.Registers[REG_R2] = 6
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(15), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0F")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R1] = 6
+	s.cpu.Registers[REG_R2] = 7
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x01")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+}
+
 func (s *Cpu4004Suite) TestRam() {
 	s.AssembleAndLoad(`
 FIM P7, 00H
@@ -494,6 +523,65 @@ HLT
 	for i := 0; i < 14; i++ {
 		s.Equal(byte(i+1), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i+1))
 	}
+}
+
+func (s *Cpu4004Suite) TestDAA() {
+	s.AssembleAndLoad(`
+DAA
+HLT
+`)
+	s.cpu.Registers[REG_ACCUM] = 5
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(5), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x05")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 5
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x0B), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0B")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 9
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x09), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x09")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 9
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x0F), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0B")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 0x0A
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x00), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x00")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 0x0F
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(5), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x05")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 
 func TestCpu4004Suite(t *testing.T) {
