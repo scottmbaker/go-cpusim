@@ -118,6 +118,24 @@ func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 	return 0, nil
 }
 
+func (sim *CpuSim) WriteMemoryStatus(address Address, statusAddr Address, value byte) error {
+	for _, mem := range sim.Memory {
+		if mem.HasAddress(address) {
+			return mem.WriteStatus(address, statusAddr, value)
+		}
+	}
+	return nil
+}
+
+func (sim *CpuSim) ReadMemoryStatus(address Address, statusAddr Address) (byte, error) {
+	for _, mem := range sim.Memory {
+		if mem.HasAddress(address) {
+			return mem.ReadStatus(address, statusAddr)
+		}
+	}
+	return 0, nil
+}
+
 func (sim *CpuSim) ReadPort(port Address) (byte, error) {
 	for _, p := range sim.Ports {
 		if p.HasAddress(port) {

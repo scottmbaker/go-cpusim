@@ -71,3 +71,15 @@ func (e *ErrInvalidOperation) Error() string {
 		return fmt.Sprintf("Invalid opcode: %02X", e.Operation)
 	}
 }
+
+type ErrNotImplemented struct {
+	Device DeviceInterface
+}
+
+func (e *ErrNotImplemented) Error() string {
+	if e.Device != nil {
+		return fmt.Sprintf("Device %s: Not implemented", e.Device.GetName())
+	} else {
+		return "Not implemented"
+	}
+}

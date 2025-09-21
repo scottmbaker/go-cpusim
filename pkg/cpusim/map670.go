@@ -39,7 +39,21 @@ func (m *Map670) Write(address Address, value byte) error {
 }
 
 func (m *Map670) Read(address Address) (byte, error) {
-	return 0, &ErrReadOnly{}
+	return 0, &ErrReadOnly{Device: m}
+}
+
+func (m *Map670) WriteStatus(address Address, statusAddr Address, value byte) error {
+	_ = address
+	_ = statusAddr
+	_ = value
+	return &ErrNotImplemented{Device: m}
+
+}
+
+func (m *Map670) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	_ = address
+	_ = statusAddr
+	return 0, &ErrReadOnly{Device: m}
 }
 
 func (m *Map670) Map(address Address) (Address, error) {

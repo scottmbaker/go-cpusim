@@ -6,14 +6,15 @@ import (
 )
 
 type Memory struct {
-	Sim          *CpuSim
-	Name         string
-	StartAddress Address
-	EndAddress   Address
-	AddressBits  int
-	ReadOnly     bool
-	Contents     []byte
-	Enabler      EnablerInterface
+	Sim            *CpuSim
+	Name           string
+	StartAddress   Address
+	EndAddress     Address
+	AddressBits    int
+	ReadOnly       bool
+	Contents       []byte
+	StatusContents []byte // for 4004 style memory with status bytes
+	Enabler        EnablerInterface
 }
 
 func (mem *Memory) GetName() string {
@@ -29,7 +30,7 @@ func (mem *Memory) HasAddress(address Address) bool {
 
 func (mem *Memory) Read(address Address) (byte, error) {
 	if !mem.HasAddress(address) {
-		return 0, &ErrInvalidAddress{Address: address}
+		return 0, &ErrInvalidAddress{Device: mem, Address: address}
 	}
 	index := address - mem.StartAddress
 	return mem.Contents[index], nil
@@ -37,7 +38,7 @@ func (mem *Memory) Read(address Address) (byte, error) {
 
 func (mem *Memory) Write(address Address, value byte) error {
 	if !mem.HasAddress(address) {
-		return &ErrInvalidAddress{Address: address}
+		return &ErrInvalidAddress{Device: mem, Address: address}
 	}
 	if mem.ReadOnly {
 		return &ErrReadOnly{}
@@ -45,6 +46,21 @@ func (mem *Memory) Write(address Address, value byte) error {
 	index := address - mem.StartAddress
 	mem.Contents[index] = value
 
+	return nil
+}
+
+func (mem *Memory) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents)) {
+		return 0, &ErrInvalidAddress{Device: mem, Address: statusAddr}
+	}
+	return mem.StatusContents[statusAddr], nil
+}
+
+func (mem *Memory) WriteStatus(address Address, statusAddr Address, value byte) error {
+	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents)) {
+		return &ErrInvalidAddress{Device: mem, Address: statusAddr}
+	}
+	mem.StatusContents[statusAddr] = value
 	return nil
 }
 

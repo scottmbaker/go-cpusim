@@ -62,6 +62,8 @@ const (
 	OP_DAA = 8
 	OP_KBP = 9
 	OP_CMA = 10
+	OP_ADM = 11
+	OP_SBM = 12
 )
 
 var KBPTable = [16]int{0, 1, 2, 3, 4, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15}
@@ -360,6 +362,51 @@ func (cpu *CPU4004) UpdateIncFlags(work int) error {
 	return nil
 }
 
+func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
+	acc, err := cpu.GetReg(REG_ACCUM)
+	if err != nil {
+		return err
+	}
+	where := int((opCode >> 1) & 0x07)
+	cpu.DebugWrite(where)
+	switch where {
+	case 0:
+		return cpu.Sim.WriteMemory(cpusim.Address(cpu.RC), acc)
+	case 1:
+		// ramport
+	case 2:
+		// romport
+	case 4, 5, 6, 7:
+		return cpu.Sim.WriteMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4), acc)
+	}
+
+	return &cpusim.ErrInvalidOpcode{Device: cpu, Opcode: opCode}
+}
+
+func (cpu *CPU4004) ExecuteRead(opCode byte) error {
+	where := int((opCode >> 1) & 0x07)
+	var value byte
+	var err error
+	switch where {
+	case 1:
+		value, err = cpu.Sim.ReadMemory(cpusim.Address(cpu.RC))
+		if err != nil {
+			return err
+		}
+	case 2:
+		// romport
+	case 4, 5, 6, 7:
+		value, err = cpu.Sim.ReadMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4))
+		if err != nil {
+			return err
+		}
+	default:
+		return &cpusim.ErrInvalidOpcode{Device: cpu, Opcode: opCode}
+	}
+	cpu.DebugRead(where)
+	return cpu.SetReg(REG_ACCUM, value)
+}
+
 func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	var work int
 
@@ -383,15 +430,22 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		}
 	}
 
+	if op == OP_ADM || op == OP_SBM {
+		val, err = cpu.Sim.ReadMemory(cpusim.Address(cpu.RC))
+		if err != nil {
+			return err
+		}
+	}
+
 	work = int(acc)
 
 	switch op {
-	case OP_ADD:
+	case OP_ADD, OP_ADM:
 		work = work + int(val)
 		if carryBit != 0 {
 			work = work + 1
 		}
-	case OP_SUB:
+	case OP_SUB, OP_SBM:
 		work = work - int(val)
 		if carryBit != 0 {
 			work = work - 1
@@ -631,6 +685,22 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0xC0 {
 		return cpu.ExecuteBBL(opCode & 0x0F)
+	}
+
+	if opCode&0xF8 == 0xE0 {
+		return cpu.ExecuteWrite(opCode)
+	}
+
+	if opCode == 0xE8 {
+		return cpu.ExecuteAccumulator(opCode, OP_ADM)
+	}
+
+	if opCode == 0xEB {
+		return cpu.ExecuteAccumulator(opCode, OP_SBM)
+	}
+
+	if opCode&0xF8 == 0xE8 {
+		return cpu.ExecuteRead(opCode)
 	}
 
 	if opCode == 0xF0 {

@@ -33,6 +33,20 @@ func (d *DipSwitch) Write(address Address, value byte) error {
 	return &ErrReadOnly{Device: d}
 }
 
+func (d *DipSwitch) WriteStatus(address Address, statusAddr Address, value byte) error {
+	_ = address
+	_ = statusAddr
+	_ = value
+	return &ErrNotImplemented{Device: d}
+
+}
+
+func (d *DipSwitch) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	_ = address
+	_ = statusAddr
+	return 0, &ErrReadOnly{Device: d}
+}
+
 func NewDipSwitch(sim *CpuSim, name string, dataReadAddress Address, value byte, enabler EnablerInterface) *DipSwitch {
 	return &DipSwitch{
 		Sim:             sim,

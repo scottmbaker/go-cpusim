@@ -78,6 +78,19 @@ func (u *UART) Write(address Address, value byte) error {
 	return nil
 }
 
+func (u *UART) WriteStatus(address Address, statusAddr Address, value byte) error {
+	_ = address
+	_ = statusAddr
+	_ = value
+	return &ErrNotImplemented{Device: u}
+}
+
+func (u *UART) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	_ = address
+	_ = statusAddr
+	return 0, &ErrNotImplemented{Device: u}
+}
+
 func (u *UART) Run() error {
 	for {
 		input := make([]byte, 1)

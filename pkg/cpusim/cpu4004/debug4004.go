@@ -61,6 +61,10 @@ func (cpu CPU4004) DebugAccumulator(op int, reg int) {
 		cpu.DebugInstr("KBP")
 	case OP_CMA:
 		cpu.DebugInstr("CMA")
+	case OP_ADM:
+		cpu.DebugInstr("ADM")
+	case OP_SBM:
+		cpu.DebugInstr("SBM")
 	}
 }
 
@@ -105,4 +109,40 @@ func (cpu *CPU4004) DebugMoveImmediate(dest int, val byte) {
 func (cpu *CPU4004) DebugFetchImmediate(dest int, val byte) {
 	destName := cpu.GetPairName(dest)
 	cpu.DebugInstr("FIM %s, %02xh", destName, val)
+}
+
+func (cpu *CPU4004) DebugRead(where int) {
+	switch where {
+	case 1:
+		cpu.DebugInstr("RDM")
+	case 2:
+		cpu.DebugInstr("RDR")
+	case 4:
+		cpu.DebugInstr("RD0")
+	case 5:
+		cpu.DebugInstr("RD1")
+	case 6:
+		cpu.DebugInstr("RD2")
+	case 7:
+		cpu.DebugInstr("RD3")
+	}
+}
+
+func (cpu *CPU4004) DebugWrite(where int) {
+	switch where {
+	case 0:
+		cpu.DebugInstr("WRM")
+	case 1:
+		cpu.DebugInstr("WMP")
+	case 2:
+		cpu.DebugInstr("WRR")
+	case 4:
+		cpu.DebugInstr("WR0")
+	case 5:
+		cpu.DebugInstr("WR1")
+	case 6:
+		cpu.DebugInstr("WR2")
+	case 7:
+		cpu.DebugInstr("WR3")
+	}
 }
