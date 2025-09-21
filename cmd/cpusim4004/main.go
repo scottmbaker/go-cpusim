@@ -39,16 +39,18 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	cpu := cpu4004.New4004(sim, "cpu")
 	sim.AddCPU(cpu)
 
-	mapper := cpusim.New74670(sim, "mapper", 0x0C, cpusim.A12, cpusim.D0, cpusim.A12, cpusim.A13, cpusim.A14, cpusim.A15, &cpusim.AlwaysEnabled)
+	/*  XXX this needs to be attached to a ROM Port
+	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled)
 	sim.AddMapper(mapper)
 	sim.AddPort(mapper)
+	*/
+
+	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
+	sim.AddMemory(rom)
 
 	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0x3F, 6, false, cpu.DCLEnabler(0))
 	ram.CreateStatusBytes(0x3F, 0x04)
-
-	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
 	sim.AddMemory(ram)
-	sim.AddMemory(rom)
 
 	b8b := cpu4004.NewBus8Bit(sim, "bus8", cpu.DCLEnabler(3))
 	sim.AddMemory(b8b)
