@@ -190,11 +190,11 @@ func (cpu *CPU4004) GetPair(pair int) (byte, error) {
 	if pair < 0 || pair >= 8 {
 		return 0, &cpusim.ErrInvalidRegister{Device: cpu, Register: pair}
 	}
-	low, err := cpu.GetReg(pair * 2)
+	high, err := cpu.GetReg(pair * 2)
 	if err != nil {
 		return 0, err
 	}
-	high, err := cpu.GetReg(pair*2 + 1)
+	low, err := cpu.GetReg(pair*2 + 1)
 	if err != nil {
 		return 0, err
 	}
@@ -212,11 +212,11 @@ func (cpu *CPU4004) SetPair(pair int, value byte) error {
 	}
 	low := value & 0x0F
 	high := (value >> 4) & 0x0F
-	err := cpu.SetReg(pair*2, low)
+	err := cpu.SetReg(pair*2, high)
 	if err != nil {
 		return err
 	}
-	err = cpu.SetReg(pair*2+1, high)
+	err = cpu.SetReg(pair*2+1, low)
 	return err
 }
 
@@ -226,6 +226,21 @@ func (cpu *CPU4004) ExecuteMovePair(destPair int, srcPair int) error {
 		return err
 	}
 	cpu.DebugMovePair(destPair, srcPair)
+	return cpu.SetPair(destPair, srcVal)
+}
+
+func (cpu *CPU4004) ExecuteFIN(destPair int) error {
+	srcRelAddr, err := cpu.GetPair(PAIR_P0)
+	if err != nil {
+		return err
+	}
+	srcAddr := (cpu.PC & 0xFF00) | uint16(srcRelAddr)
+	cpu.Sim.FilterMemoryKind(cpusim.KIND_ROM)
+	srcVal, err := cpu.Sim.ReadMemory(cpusim.Address(srcAddr))
+	if err != nil {
+		return err
+	}
+	cpu.DebugFIN(destPair)
 	return cpu.SetPair(destPair, srcVal)
 }
 
@@ -656,7 +671,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF1 == 0x30 {
 		// FIN
-		return cpu.ExecuteMovePair(int((opCode>>1)&0x07), PAIR_P0)
+		return cpu.ExecuteFIN(int((opCode >> 1) & 0x07))
 	}
 
 	if opCode&0xF1 == 0x31 {
