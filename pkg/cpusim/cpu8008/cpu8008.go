@@ -379,7 +379,7 @@ func (cpu *CPU8008) ExecuteRotate(op int) error {
 func (cpu *CPU8008) PushStack(value uint16) {
 	cpu.Stack[cpu.SP] = cpu.PC
 	cpu.SP++
-	if cpu.SP >= byte(len(cpu.Stack)) {
+	if cpu.SP >= byte(len(cpu.Stack)) { // XXXX possible bug here
 		cpu.SP = 0 // wrap around stack pointer
 	}
 }
