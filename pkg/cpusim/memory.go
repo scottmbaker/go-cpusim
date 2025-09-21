@@ -51,6 +51,7 @@ func (mem *Memory) Write(address Address, value byte) error {
 }
 
 func (mem *Memory) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	address = (address >> 4) & 0x03 // 4004 only uses 2 bits to select the status characters
 	if address >= Address(len(mem.StatusContents)) {
 		return 0, &ErrInvalidAddress{Device: mem, Address: address}
 	}
@@ -61,6 +62,7 @@ func (mem *Memory) ReadStatus(address Address, statusAddr Address) (byte, error)
 }
 
 func (mem *Memory) WriteStatus(address Address, statusAddr Address, value byte) error {
+	address = (address >> 4) & 0x03 // 4004 only uses 2 bits to select the status characters
 	if address >= Address(len(mem.StatusContents)) {
 		return &ErrInvalidAddress{Device: mem, Address: address}
 	}

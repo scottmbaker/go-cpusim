@@ -94,7 +94,7 @@ func (s *Cpu4004Suite) SetupTest() {
 	s.sim.AddMemory(s.rom)
 
 	s.ram = cpusim.NewMemory(s.sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3F, 6, false, s.cpu.DCLEnabler(0))
-	s.ram.CreateStatusBytes(0x40, 0x04)
+	s.ram.CreateStatusBytes(0x04, 0x04)
 	s.sim.AddMemory(s.ram)
 
 	b8b := NewBus8Bit(s.sim, "bus8", s.cpu.DCLEnabler(4))
@@ -392,462 +392,109 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 
-/*
-func (s *Cpu4004Suite) TestADI() {
-	s.cpu.Registers[REG_A] = 0 // Set register B to 0
+func (s *Cpu4004Suite) TestRam() {
 	s.AssembleAndLoad(`
-ADI 1
+FIM P7, 00H
+SRC P7
+LDM 1
+WR0
+LDM 2
+WR1
+LDM 3
+WR2
+LDM 4
+WR3
+FIM P7, 10H
+SRC P7
+LDM 5
+WR0
+LDM 6
+WR1
+LDM 7
+WR2
+LDM 8
+WR3
+
+FIM P7,00H
+SRC P7
+LDM 9
+WRM
+FIM P7,01H
+SRC P7
+LDM 10
+WRM
+FIM P7,02H
+SRC P7
+LDM 11
+WRM
+FIM P7,10H
+SRC P7
+LDM 12
+WRM
+FIM P7,11H
+SRC P7
+LDM 13
+WRM
+FIM P7,12H
+SRC P7
+LDM 14
+WRM
+
+FIM P7, 00H
+SRC P7
+RD0
+XCH R0
+RD1
+XCH R1
+RD2
+XCH R2
+RD3
+XCH R3
+FIM P7, 10H
+SRC P7
+RD0
+XCH R4
+RD1
+XCH R5
+RD2
+XCH R6
+RD3
+XCH R7
+
+FIM P7,00H
+SRC P7
+RDM
+XCH R8
+FIM P7,01H
+SRC P7
+RDM
+XCH R9
+FIM P7,02H
+SRC P7
+RDM
+XCH R10
+FIM P7,10H
+SRC P7
+RDM
+XCH R11
+FIM P7,11H
+SRC P7
+RDM
+XCH R12
+FIM P7,12H
+SRC P7
+RDM
+XCH R13
+
 HLT
 `)
 	err := s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(1), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(2), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(3), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-
-	s.cpu.Registers[REG_A] = 255 // Set register B to 255
-	s.cpu.PC = 0                 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0), s.cpu.Registers[REG_A])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestSUI() {
-	s.cpu.Registers[REG_A] = 1 // Set register A to 1
-	s.AssembleAndLoad(`
-SUI 1
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0), s.cpu.Registers[REG_A])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(255), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
-
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(254), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_SIGN])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestJZ() {
-	s.AssembleAndLoad(`
-ORA A
-JZ L1
-MVI B,2
-HLT
-L1:
-MVI B,3
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(3), s.cpu.Registers[REG_B])
-
-	s.cpu.Registers[REG_A] = 1
-	s.cpu.PC = 0
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(2), s.cpu.Registers[REG_B])
-}
-
-func (s *Cpu4004Suite) TestJNZ() {
-	s.AssembleAndLoad(`
-ORA A
-JNZ L1
-MVI B,2
-HLT
-L1:
-MVI B,3
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(2), s.cpu.Registers[REG_B])
-
-	s.cpu.Registers[REG_A] = 1
-	s.cpu.PC = 0
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(3), s.cpu.Registers[REG_B])
-}
-
-func (s *Cpu4004Suite) TestMOV() {
-	s.AssembleAndLoad(`
-MVI A, 12H
-MOV B,A
-INR B
-MOV C,B
-INR C
-MOV D,C
-INR D
-MOV E,D
-INR E
-MOV H,E
-INR H
-MOV L,H
-INR L
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x12), s.cpu.Registers[REG_A])
-	s.Equal(byte(0x13), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x14), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x15), s.cpu.Registers[REG_D])
-	s.Equal(byte(0x16), s.cpu.Registers[REG_E])
-	s.Equal(byte(0x17), s.cpu.Registers[REG_H])
-	s.Equal(byte(0x18), s.cpu.Registers[REG_L])
-}
-
-func (s *Cpu4004Suite) TestMOVM() {
-	err := s.ram.Write(0x1234, 0x56)
-	s.NoError(err)
-	s.AssembleAndLoad(`
-MVI	H,12H
-MVI L,34H
-MOV A,M
-ADI 7
-MVI H,12H
-MVI L,35H
-MOV M,A
-HLT
-`)
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x12), s.cpu.Registers[REG_H])
-	s.Equal(byte(0x35), s.cpu.Registers[REG_L])
-	s.Equal(byte(0x5D), s.cpu.Registers[REG_A])
-	value, err := s.ram.Read(0x1235)
-	s.NoError(err)
-	s.Equal(byte(0x5D), value)
-}
-
-func (s *Cpu4004Suite) TestCall() {
-	s.AssembleAndLoad(`
-MVI D, 45H
-MVI E, 54H
-CALL L1
-HLT
-L1:
-INR D
-CALL L2
-INR E
-RET
-L2:
-INR D
-CALL L3
-INR E
-RET
-L3:
-INR D
-CALL L4
-INR E
-RET
-L4:
-INR D
-CALL L5
-INR E
-RET
-L5:
-INR D
-CALL L6
-INR E
-RET
-L6:
-INR D
-CALL L7
-INR E
-RET
-L7:
-MOV B,D
-MOV C,E
-RET
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x4B), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x54), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x4B), s.cpu.Registers[REG_D])
-	s.Equal(byte(0x5A), s.cpu.Registers[REG_E])
-}
-
-func (s *Cpu4004Suite) TestLogical() {
-	s.AssembleAndLoad(`
-MVI A, 12H
-ANI 03H
-MOV B,A
-MVI A, 34H
-ORI 01H
-MOV C,A
-MVI A, 56H
-XRI 33H
-MOV D,A
-MVI A, 78H
-CPI 78H
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x78), s.cpu.Registers[REG_A])
-	s.Equal(byte(0x02), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x35), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x65), s.cpu.Registers[REG_D])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-}
-
-func (s *Cpu4004Suite) TestLogicalReg() {
-	s.AssembleAndLoad(`
-MVI A, 12H
-MVI B, 03H
-ANA B
-MOV B,A
-MVI A, 34H
-MVI C, 01H
-ORA C
-MOV C,A
-MVI A, 56H
-MVI D, 33H
-XRA D
-MOV D,A
-MVI A, 78H
-CPI 78H
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x78), s.cpu.Registers[REG_A])
-	s.Equal(byte(0x02), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x35), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x65), s.cpu.Registers[REG_D])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-}
-
-func (s *Cpu4004Suite) TestIn() {
-	s.AssembleAndLoad(`
-IN 3
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0xC3), s.cpu.Registers[REG_A])
-}
-
-func (s *Cpu4004Suite) TestOut() {
-	s.AssembleAndLoad(`
-MVI A,0A0h
-OUT 08H
-MVI A,0A1h
-OUT 09H
-MVI A,0A2h
-OUT 0AH
-MVI A,0A3h
-OUT 0BH
-MVI A,0A4h
-OUT 0CH
-MVI A,0A5h
-OUT 0DH
-MVI A,0A6h
-OUT 0EH
-MVI A,0A7h
-OUT 0FH
-MVI A,0A8h
-OUT 10H
-MVI A,0A9h
-OUT 11H
-MVI A,0AAh
-OUT 12H
-MVI A,0ABh
-OUT 13H
-MVI A,0ACh
-OUT 14H
-MVI A,0ADh
-OUT 15H
-MVI A,0AEh
-OUT 16H
-MVI A,0AFh
-OUT 17H
-MVI A,0B0h
-OUT 18H
-MVI A,0B1h
-OUT 19H
-MVI A,0B2h
-OUT 1AH
-MVI A,0B3h
-OUT 1BH
-MVI A,0B4h
-OUT 1CH
-MVI A,0B5h
-OUT 1DH
-MVI A,0B6h
-OUT 1EH
-MVI A,0B7h
-OUT 1FH
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	for i := 8; i < 32; i++ {
-		s.Equal(byte(0xA0+(i-8)), s.testPort.out[i], "Output to port %02X should be %02X", i, byte(0xA0+(i-8)))
+	for i := 0; i < 14; i++ {
+		s.Equal(byte(i+1), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i+1))
 	}
 }
-
-func (s *Cpu4004Suite) TestRotate() {
-	s.AssembleAndLoad(`
-MVI	A,1
-RLC
-MOV	B,A
-RRC
-MOV C,A
-MVI A,80h
-RLC
-MOV D,A
-RRC
-MOV E,A
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x02), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x01), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x01), s.cpu.Registers[REG_D])
-	s.Equal(byte(0x80), s.cpu.Registers[REG_E])
-}
-
-func (s *Cpu4004Suite) TestRAL() {
-	s.AssembleAndLoad(`
-MVI	A,80h
-RAL
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x00), s.cpu.Registers[REG_A])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestRALWithCarry() {
-	s.cpu.Registers[FLAG_CARRY] = 1
-	s.AssembleAndLoad(`
-MVI	A,40h
-RAL
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x81), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestRAR() {
-	s.AssembleAndLoad(`
-MVI	A,1h
-RAR
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x00), s.cpu.Registers[REG_A])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestRARWithCarrt() {
-	s.cpu.Registers[FLAG_CARRY] = 1
-	s.AssembleAndLoad(`
-MVI	A,04h
-RAR
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x82), s.cpu.Registers[REG_A])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
-}
-
-func (s *Cpu4004Suite) TestRST() {
-	s.AssembleAndLoad(`
-JMP L1
-ORG 8h
-MVI	B,2
-RET
-ORG 10h
-MVI C,3
-RET
-ORG 18h
-MVI D,4
-RET
-ORG 20h
-MVI E,5
-RET
-ORG 28h
-MVI H,6
-RET
-ORG 30h
-MVI L,7
-RET
-ORG 38h
-MVI A,8
-RET
-L1:
-RST 1
-RST 2
-RST 3
-RST 4
-RST 5
-RST 6
-RST 7
-HLT
-`)
-	err := s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(0x02), s.cpu.Registers[REG_B])
-	s.Equal(byte(0x03), s.cpu.Registers[REG_C])
-	s.Equal(byte(0x04), s.cpu.Registers[REG_D])
-	s.Equal(byte(0x05), s.cpu.Registers[REG_E])
-	s.Equal(byte(0x06), s.cpu.Registers[REG_H])
-	s.Equal(byte(0x07), s.cpu.Registers[REG_L])
-	s.Equal(byte(0x08), s.cpu.Registers[REG_A])
-}
-*/
 
 func TestCpu4004Suite(t *testing.T) {
 	suite.Run(t, new(Cpu4004Suite))
