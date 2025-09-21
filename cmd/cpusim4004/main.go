@@ -43,8 +43,10 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddMapper(mapper)
 	sim.AddPort(mapper)
 
-	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0xFFFF, 16, false, &cpusim.TrueEnabler{})
-	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0xFFFF, 16, true, &cpusim.TrueEnabler{})
+	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0x3F, 6, false, cpu.DCLEnabler(0))
+	ram.CreateStatusBytes(0x3F, 0x04)
+
+	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
 	sim.AddMemory(ram)
 	sim.AddMemory(rom)
 

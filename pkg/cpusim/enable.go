@@ -15,6 +15,11 @@ type ByReferenceEnabler struct {
 	Inverted bool
 }
 
+type ByReferenceByteEnabler struct {
+	Value *byte
+	Match byte
+}
+
 type EnableBit struct {
 	Value    bool
 	LoEnable ByReferenceEnabler
@@ -37,6 +42,10 @@ func (e *ByReferenceEnabler) Bool() bool {
 	}
 }
 
+func (e *ByReferenceByteEnabler) Bool() bool {
+	return *e.Value == e.Match
+}
+
 func (e *EnableBit) Set(value bool) {
 	e.Value = value
 }
@@ -46,6 +55,10 @@ func NewEnableBit() *EnableBit {
 	eb.LoEnable = ByReferenceEnabler{Value: &eb.Value, Inverted: true}
 	eb.HiEnable = ByReferenceEnabler{Value: &eb.Value, Inverted: false}
 	return eb
+}
+
+func NewByReferenceByteEnabler(value *byte, match byte) *ByReferenceByteEnabler {
+	return &ByReferenceByteEnabler{Value: value, Match: match}
 }
 
 var AlwaysEnabled TrueEnabler

@@ -91,6 +91,10 @@ func (cpu *CPU4004) GetName() string {
 	return cpu.Name
 }
 
+func (cpu *CPU4004) DCLEnabler(value byte) *cpusim.ByReferenceByteEnabler {
+	return cpusim.NewByReferenceByteEnabler(&cpu.Registers[REG_CL], value)
+}
+
 func (cpu *CPU4004) GetRegName(reg int) string {
 	switch reg {
 	case REG_R0:

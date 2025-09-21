@@ -61,7 +61,7 @@ func (mem *Memory) ReadStatus(address Address, statusAddr Address) (byte, error)
 
 func (mem *Memory) WriteStatus(address Address, statusAddr Address, value byte) error {
 	if address >= Address(len(mem.StatusContents)) {
-		return 0, &ErrInvalidAddress{Device: mem, Address: address}
+		return &ErrInvalidAddress{Device: mem, Address: address}
 	}
 	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents[address])) {
 		return &ErrInvalidAddress{Device: mem, Address: statusAddr}
@@ -85,8 +85,7 @@ func (mem *Memory) Load(filename string) error {
 	return nil
 }
 
-func (mem *Memory) CreateStatusBytes(rows, columns int)
-{
+func (mem *Memory) CreateStatusBytes(rows, columns int) {
 	mem.StatusContents = make([][]byte, rows)
 	for i := range mem.StatusContents {
 		mem.StatusContents[i] = make([]byte, columns)
