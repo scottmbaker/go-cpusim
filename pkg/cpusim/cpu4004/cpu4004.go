@@ -378,8 +378,10 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 		return cpu.Sim.WriteMemory(cpusim.Address(cpu.RC), acc)
 	case 1:
 		// ramport
+		return nil
 	case 2:
 		// romport
+		return nil
 	case 4, 5, 6, 7:
 		return cpu.Sim.WriteMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4), acc)
 	}
@@ -399,6 +401,7 @@ func (cpu *CPU4004) ExecuteRead(opCode byte) error {
 		}
 	case 2:
 		// romport
+		return nil
 	case 4, 5, 6, 7:
 		value, err = cpu.Sim.ReadMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4))
 		if err != nil {
@@ -637,7 +640,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF1 == 0x30 {
 		// FIN
-		return cpu.ExecuteMovePair(PAIR_P0, int((opCode>>1)&0x07))
+		return cpu.ExecuteMovePair(int((opCode>>1)&0x07), PAIR_P0)
 	}
 
 	if opCode&0xF1 == 0x31 {

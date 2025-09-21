@@ -80,10 +80,11 @@ func (cpu *CPU4004) DebugIncSkip(reg int, addr byte) {
 
 func (cpu *CPU4004) DebugMovePair(dest, src int) {
 	srcName := cpu.GetPairName(src)
+	destName := cpu.GetPairName(dest)
 	if dest == PAIR_RC {
 		cpu.DebugInstr("SRC %s", srcName)
-	} else if dest == PAIR_P0 {
-		cpu.DebugInstr("FIM %s", srcName)
+	} else if src == PAIR_P0 {
+		cpu.DebugInstr("FIN %s", destName)
 	} else {
 		cpu.DebugInstr("??? Move Pair %s", srcName)
 	}
