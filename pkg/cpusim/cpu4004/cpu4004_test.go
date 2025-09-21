@@ -224,7 +224,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY]) // carry should be unaffected
 }
 
-func (s *Cpu4004Suite) TestRegs() {
+func (s *Cpu4004Suite) TestExchange() {
 	s.AssembleAndLoad(`
 LDM 0
 XCH R0
@@ -266,6 +266,21 @@ HLT
 	for i := 0; i <= 15; i++ {
 		s.Equal(byte(i), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i))
 	}
+}
+
+func (s *Cpu4004Suite) TestLoad() {
+	s.AssembleAndLoad(`
+LDM 13
+XCH R7
+LDM 0
+LD R7
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(13), s.cpu.Registers[REG_ACCUM], "Accumulator should be %02X", byte(13))
+	s.Equal(byte(13), s.cpu.Registers[REG_R7], "Register R07 should be %02X", byte(13))
 }
 
 func (s *Cpu4004Suite) TestRegs2() {
@@ -310,6 +325,71 @@ HLT
 	for i := 0; i <= 15; i++ {
 		s.Equal(byte(i), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i))
 	}
+}
+
+func (s *Cpu4004Suite) TestAdd() {
+	s.AssembleAndLoad(`
+ADD R3
+HLT
+`)
+	s.cpu.Registers[REG_R3] = 7
+	s.cpu.Registers[REG_ACCUM] = 5
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(12), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0C")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0                // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 6 // should now be 6 + 12 = 18, overflow and leaves 2 in accumulator
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x02")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 7
+	s.cpu.Registers[REG_ACCUM] = 5
+	s.cpu.Registers[FLAG_CARRY] = 1 // carry should add 1 to the sum
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(13), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0D")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+}
+
+func (s *Cpu4004Suite) TestSub() {
+	s.AssembleAndLoad(`
+SUB R3
+HLT
+`)
+	s.cpu.Registers[REG_R3] = 5
+	s.cpu.Registers[REG_ACCUM] = 7
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x02")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0
+	s.cpu.Registers[REG_R3] = 6 // should now be 2-6 = -4, overflow and leaves 4 in accumulator
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(12), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0C")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 5
+	s.cpu.Registers[REG_ACCUM] = 7
+	s.cpu.Registers[FLAG_CARRY] = 1 // carry should subtract 1 from the result
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x01")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 
 /*

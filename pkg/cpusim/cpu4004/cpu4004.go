@@ -484,7 +484,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	case OP_KBP:
 		work = KBPTable[work&0x0F]
 	case OP_CMA:
-		work = (^work) & 0x0F
+		work = (^work)
 	}
 
 	err = cpu.updateArithFlags(op, work)
@@ -492,7 +492,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		return err
 	}
 
-	acc = byte(work & 0xFF)
+	acc = byte(work & 0x0F)
 	cpu.DebugAccumulator(op, reg)
 
 	return cpu.SetReg(REG_ACCUM, acc)

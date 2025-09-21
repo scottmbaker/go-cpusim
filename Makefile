@@ -15,6 +15,10 @@ build4004:
 demo: build
 	./build/_output/cpusim8008 -f roms/sbc-8251.rom
 
+.PHONE: demo4004
+demo4004: build
+	./build/_output/cpusim4004 -f scott-uart.rom
+
 .PHONY: go-format
 go-format:
 	go fmt $(shell sh -c "go list ./...")
