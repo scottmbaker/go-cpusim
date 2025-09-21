@@ -13,7 +13,7 @@ type Memory struct {
 	AddressBits    int
 	ReadOnly       bool
 	Contents       []byte
-	StatusContents []byte // for 4004 style memory with status bytes
+	StatusContents [][]byte // for 4004 style memory with status bytes
 	Enabler        EnablerInterface
 }
 
@@ -50,17 +50,23 @@ func (mem *Memory) Write(address Address, value byte) error {
 }
 
 func (mem *Memory) ReadStatus(address Address, statusAddr Address) (byte, error) {
-	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents)) {
+	if address >= Address(len(mem.StatusContents)) {
+		return 0, &ErrInvalidAddress{Device: mem, Address: address}
+	}
+	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents[address])) {
 		return 0, &ErrInvalidAddress{Device: mem, Address: statusAddr}
 	}
-	return mem.StatusContents[statusAddr], nil
+	return mem.StatusContents[address][statusAddr], nil
 }
 
 func (mem *Memory) WriteStatus(address Address, statusAddr Address, value byte) error {
-	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents)) {
+	if address >= Address(len(mem.StatusContents)) {
+		return 0, &ErrInvalidAddress{Device: mem, Address: address}
+	}
+	if statusAddr < 0 || statusAddr >= Address(len(mem.StatusContents[address])) {
 		return &ErrInvalidAddress{Device: mem, Address: statusAddr}
 	}
-	mem.StatusContents[statusAddr] = value
+	mem.StatusContents[address][statusAddr] = value
 	return nil
 }
 
@@ -77,6 +83,14 @@ func (mem *Memory) Load(filename string) error {
 	}
 
 	return nil
+}
+
+func (mem *Memory) CreateStatusBytes(rows, columns int)
+{
+	mem.StatusContents = make([][]byte, rows)
+	for i := range mem.StatusContents {
+		mem.StatusContents[i] = make([]byte, columns)
+	}
 }
 
 func NewMemory(sim *CpuSim, name string, startAddress, endAddress Address, addressBits int, readonly bool, enabler EnablerInterface) *Memory {
