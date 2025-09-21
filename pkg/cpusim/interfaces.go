@@ -8,6 +8,7 @@ type CpuInterface interface {
 }
 
 type MemoryInterface interface {
+	GetKind() string
 	HasAddress(address Address) bool
 	Read(address Address) (byte, error)
 	Write(address Address, value byte) error

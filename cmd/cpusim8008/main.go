@@ -93,8 +93,8 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	// Create RAM and ROM. These are both 32K in size. The 74670 mapper will map the appropriate regions and toggle the
 	// chip select as appropriate.
-	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0xFFFF, 16, false, &ramRomEnable.HiEnable)
-	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0xFFFF, 16, true, &ramRomEnable.LoEnable)
+	ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0xFFFF, 16, false, &ramRomEnable.HiEnable)
+	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0xFFFF, 16, true, &ramRomEnable.LoEnable)
 	sim.AddMemory(ram)
 	sim.AddMemory(rom)
 

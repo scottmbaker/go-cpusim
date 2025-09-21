@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	UART_DATA_R    = 2
-	UART_DATA_W    = 0x12
-	UART_CONTROL_R = 3
-	UART_CONTROL_W = 0x13
+	UART_DATA_R    = 0xE0
+	UART_DATA_W    = 0xE0
+	UART_CONTROL_R = 0xE1
+	UART_CONTROL_W = 0xE1
 )
 
 var (
@@ -45,14 +45,14 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddPort(mapper)
 	*/
 
-	rom := cpusim.NewMemory(sim, "rom", 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
+	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
 	sim.AddMemory(rom)
 
-	ram := cpusim.NewMemory(sim, "ram", 0x0000, 0x3F, 6, false, cpu.DCLEnabler(0))
+	ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3F, 6, false, cpu.DCLEnabler(0))
 	ram.CreateStatusBytes(0x3F, 0x04)
 	sim.AddMemory(ram)
 
-	b8b := cpu4004.NewBus8Bit(sim, "bus8", cpu.DCLEnabler(3))
+	b8b := cpu4004.NewBus8Bit(sim, "bus8", cpu.DCLEnabler(4))
 	sim.AddMemory(b8b)
 
 	// Create an 8251 UART

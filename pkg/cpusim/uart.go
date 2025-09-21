@@ -129,6 +129,10 @@ func (u *UART) RestoreTerminal() {
 	}
 }
 
+func (u *UART) GetKind() string {
+	return KIND_UART
+}
+
 func NewUART(sim *CpuSim, name string, dataReadAddress, dataWriteAddress, controlReadAddress, controlWriteAddress Address, enabler EnablerInterface) *UART {
 	return &UART{
 		Sim:                 sim,

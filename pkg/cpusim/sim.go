@@ -33,15 +33,22 @@ const (
 	D5 = 5
 	D6 = 6
 	D7 = 7
+
+	KIND_RAM    = "RAM"
+	KIND_ROM    = "ROM"
+	KIND_MAPPER = "MAPPER"
+	KIND_UART   = "UART"
+	KIND_INPORT = "INPORT"
 )
 
 type CpuSim struct {
-	CPU     []CpuInterface
-	Memory  []MemoryInterface
-	Ports   []MemoryInterface
-	Mappers []MapperInterface
-	CtrlC   bool
-	Debug   bool
+	CPU          []CpuInterface
+	Memory       []MemoryInterface
+	Ports        []MemoryInterface
+	Mappers      []MapperInterface
+	CtrlC        bool
+	Debug        bool
+	MemoryFilter string
 }
 
 func NewCPUSim() *CpuSim {
@@ -86,6 +93,10 @@ func (sim *CpuSim) Start(wg *sync.WaitGroup) {
 	}
 }
 
+func (sim *CpuSim) FilterMemoryKind(kind string) {
+	sim.MemoryFilter = kind
+}
+
 func (sim *CpuSim) WriteMemory(address Address, value byte) error {
 	for _, mapper := range sim.Mappers {
 		var err error
@@ -95,6 +106,9 @@ func (sim *CpuSim) WriteMemory(address Address, value byte) error {
 		}
 	}
 	for _, mem := range sim.Memory {
+		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+			continue
+		}
 		if mem.HasAddress(address) {
 			return mem.Write(address, value)
 		}
@@ -111,6 +125,9 @@ func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 		}
 	}
 	for _, mem := range sim.Memory {
+		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+			continue
+		}
 		if mem.HasAddress(address) {
 			return mem.Read(address)
 		}
@@ -120,6 +137,9 @@ func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 
 func (sim *CpuSim) WriteMemoryStatus(address Address, statusAddr Address, value byte) error {
 	for _, mem := range sim.Memory {
+		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+			continue
+		}
 		if mem.HasAddress(address) {
 			return mem.WriteStatus(address, statusAddr, value)
 		}
@@ -129,6 +149,9 @@ func (sim *CpuSim) WriteMemoryStatus(address Address, statusAddr Address, value 
 
 func (sim *CpuSim) ReadMemoryStatus(address Address, statusAddr Address) (byte, error) {
 	for _, mem := range sim.Memory {
+		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+			continue
+		}
 		if mem.HasAddress(address) {
 			return mem.ReadStatus(address, statusAddr)
 		}

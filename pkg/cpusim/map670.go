@@ -80,6 +80,10 @@ func (m *Map670) ConnectEnableBit(bit int, enableBit *EnableBit) {
 	m.ConnectedEnableBit[bit] = enableBit
 }
 
+func (m *Map670) GetKind() string {
+	return KIND_MAPPER
+}
+
 func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, destBit0, destBit1, destBit2, destBit3 int, enabler EnablerInterface) *Map670 {
 	return &Map670{
 		Sim:           sim,

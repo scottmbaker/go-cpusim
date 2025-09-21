@@ -25,8 +25,8 @@ func (b *Bus8Bit) HasAddress(address cpusim.Address) bool {
 	return (address >= 0) && (address <= 255)
 }
 
-func (b *Bus8Bit) _write(address cpusim.Address, value byte) error {
-	for _, mem := range b.Memory {
+func (b *Bus8Bit) _writePort(address cpusim.Address, value byte) error {
+	for _, mem := range b.Ports {
 		if mem.HasAddress(address) {
 			return mem.Write(address, value)
 		}
@@ -34,8 +34,8 @@ func (b *Bus8Bit) _write(address cpusim.Address, value byte) error {
 	return nil
 }
 
-func (b *Bus8Bit) _read(address cpusim.Address) (byte, error) {
-	for _, mem := range b.Memory {
+func (b *Bus8Bit) _readPort(address cpusim.Address) (byte, error) {
+	for _, mem := range b.Ports {
 		if mem.HasAddress(address) {
 			return mem.Read(address)
 		}
@@ -64,7 +64,7 @@ func (b *Bus8Bit) ReadStatus(address cpusim.Address, statusAddr cpusim.Address) 
 	}
 	switch statusAddr {
 	case 0:
-		b.LastReadValue, err = b._read(address)
+		b.LastReadValue, err = b._readPort(address)
 		if err != nil {
 			return 0, err
 		}
@@ -86,12 +86,14 @@ func (b *Bus8Bit) WriteStatus(address cpusim.Address, statusAddr cpusim.Address,
 	switch statusAddr {
 	case 0:
 		b.LastWriteValue = b.LastWriteValue&0xF0 | (value & 0x0F)
-		err = b._write(address, b.LastWriteValue)
+		err = b._writePort(address, b.LastWriteValue)
 		if err != nil {
 			return err
 		}
+		return nil
 	case 1:
 		b.LastWriteValue = b.LastWriteValue&0x0F | ((value & 0x0F) << 4)
+		return nil
 	}
 	return &cpusim.ErrNotImplemented{Device: b}
 }
@@ -102,6 +104,10 @@ func (b *Bus8Bit) AddMemory(memory cpusim.MemoryInterface) {
 
 func (b *Bus8Bit) AddPort(port cpusim.MemoryInterface) {
 	b.Ports = append(b.Ports, port)
+}
+
+func (b *Bus8Bit) GetKind() string {
+	return cpusim.KIND_RAM
 }
 
 func NewBus8Bit(sim *cpusim.CpuSim, name string, enabler cpusim.EnablerInterface) *Bus8Bit {

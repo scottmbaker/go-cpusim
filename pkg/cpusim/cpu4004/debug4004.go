@@ -50,9 +50,9 @@ func (cpu CPU4004) DebugAccumulator(op int, reg int) {
 	case OP_TCS:
 		cpu.DebugInstr("TCS")
 	case OP_INC:
-		cpu.DebugInstr("DAC")
-	case OP_DEC:
 		cpu.DebugInstr("IAC")
+	case OP_DEC:
+		cpu.DebugInstr("DAC")
 	case OP_DAA:
 		cpu.DebugInstr("DAA")
 	case OP_TCC:

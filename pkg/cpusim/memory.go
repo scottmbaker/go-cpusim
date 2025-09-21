@@ -8,6 +8,7 @@ import (
 type Memory struct {
 	Sim            *CpuSim
 	Name           string
+	Kind           string
 	StartAddress   Address
 	EndAddress     Address
 	AddressBits    int
@@ -92,10 +93,15 @@ func (mem *Memory) CreateStatusBytes(rows, columns int) {
 	}
 }
 
-func NewMemory(sim *CpuSim, name string, startAddress, endAddress Address, addressBits int, readonly bool, enabler EnablerInterface) *Memory {
+func (mem *Memory) GetKind() string {
+	return mem.Kind
+}
+
+func NewMemory(sim *CpuSim, name string, kind string, startAddress, endAddress Address, addressBits int, readonly bool, enabler EnablerInterface) *Memory {
 	mem := &Memory{
 		Sim:          sim,
 		Name:         name,
+		Kind:         kind,
 		StartAddress: startAddress,
 		EndAddress:   endAddress,
 		AddressBits:  addressBits,

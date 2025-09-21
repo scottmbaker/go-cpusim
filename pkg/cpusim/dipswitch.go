@@ -46,6 +46,10 @@ func (d *DipSwitch) ReadStatus(address Address, statusAddr Address) (byte, error
 	return 0, &ErrReadOnly{Device: d}
 }
 
+func (d *DipSwitch) GetKind() string {
+	return KIND_INPORT
+}
+
 func NewDipSwitch(sim *CpuSim, name string, dataReadAddress Address, value byte, enabler EnablerInterface) *DipSwitch {
 	return &DipSwitch{
 		Sim:             sim,

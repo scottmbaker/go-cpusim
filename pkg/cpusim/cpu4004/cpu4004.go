@@ -264,8 +264,7 @@ func (cpu *CPU4004) ExecuteLoadImmediate(opCode byte, value byte) error {
 
 func (cpu *CPU4004) ExecuteFetchImmediate(opCode byte) error {
 	destPair := int((opCode >> 1) & 0x07)
-	cpu.PC++
-	value, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
+	value, err := cpu.FetchOpcode()
 	if err != nil {
 		return err
 	}
@@ -274,6 +273,7 @@ func (cpu *CPU4004) ExecuteFetchImmediate(opCode byte) error {
 }
 
 func (cpu *CPU4004) FetchOpcode() (byte, error) {
+	cpu.Sim.FilterMemoryKind(cpusim.KIND_ROM)
 	opCode, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
 		return 0, err
@@ -287,8 +287,7 @@ func (cpu *CPU4004) FetchAddr(opCode byte, long bool) (uint16, error) {
 	if long {
 		addrHigh = int(opCode & 0x0F)
 	}
-	cpu.PC++
-	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
+	addrLow, err := cpu.FetchOpcode()
 	if err != nil {
 		return 0, err
 	}
@@ -331,8 +330,7 @@ func (cpu *CPU4004) ExecuteIncSkip(opCode byte) error {
 		return err
 	}
 
-	cpu.PC++
-	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
+	addrLow, err := cpu.FetchOpcode()
 	if err != nil {
 		return err
 	}
@@ -377,10 +375,11 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 	if err != nil {
 		return err
 	}
-	where := int((opCode >> 1) & 0x07)
+	where := int(opCode & 0x07)
 	cpu.DebugWrite(where)
 	switch where {
 	case 0:
+		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		return cpu.Sim.WriteMemory(cpusim.Address(cpu.RC), acc)
 	case 1:
 		// ramport
@@ -389,6 +388,7 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 		// romport
 		return nil
 	case 4, 5, 6, 7:
+		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		return cpu.Sim.WriteMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4), acc)
 	}
 
@@ -396,11 +396,12 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 }
 
 func (cpu *CPU4004) ExecuteRead(opCode byte) error {
-	where := int((opCode >> 1) & 0x07)
+	where := int(opCode & 0x07)
 	var value byte
 	var err error
 	switch where {
 	case 1:
+		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		value, err = cpu.Sim.ReadMemory(cpusim.Address(cpu.RC))
 		if err != nil {
 			return err
@@ -409,6 +410,7 @@ func (cpu *CPU4004) ExecuteRead(opCode byte) error {
 		// romport
 		return nil
 	case 4, 5, 6, 7:
+		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		value, err = cpu.Sim.ReadMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4))
 		if err != nil {
 			return err
@@ -444,6 +446,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	}
 
 	if op == OP_ADM || op == OP_SBM {
+		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		val, err = cpu.Sim.ReadMemory(cpusim.Address(cpu.RC))
 		if err != nil {
 			return err
@@ -530,7 +533,7 @@ func (cpu *CPU4004) ExecuteRotate(op int) error {
 func (cpu *CPU4004) PushStack(value uint16) {
 	cpu.Stack[cpu.SP] = cpu.PC
 	cpu.SP++
-	if cpu.SP >= byte(len(cpu.Stack)) {
+	if cpu.SP > byte(len(cpu.Stack)) {
 		cpu.SP = 0 // wrap around stack pointer
 	}
 }
@@ -540,6 +543,8 @@ func (cpu *CPU4004) ExecuteJCN(opCode byte) error {
 	if err != nil {
 		return err
 	}
+
+	addr = cpu.PC&0xFF00 | uint16(addr) // JCN is always an 8 bit address within the current page
 
 	c1 := (opCode >> 3) & 0x01 // 1 == invert
 	c2 := (opCode >> 2) & 0x01 // 1 == check accumulator==0
@@ -630,6 +635,11 @@ func (cpu *CPU4004) Execute() error {
 		return nil
 	}
 
+	if opCode == 0x07 {
+		cpu.DebugInstr("AN7-4004-NOP")
+		return nil
+	}
+
 	if opCode&0xF0 == 0x10 {
 		// JCN
 		return cpu.ExecuteJCN(opCode)
@@ -698,6 +708,10 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0xC0 {
 		return cpu.ExecuteBBL(opCode & 0x0F)
+	}
+
+	if opCode&0xF0 == 0xD0 {
+		return cpu.ExecuteLoadImmediate(opCode, opCode&0x0F)
 	}
 
 	if opCode&0xF8 == 0xE0 {
@@ -839,10 +853,12 @@ func (cpu *CPU4004) String() string {
 		if i == 7 {
 			continue
 		}
-		s = s + fmt.Sprintf("%s=%02X", cpu.GetRegName(i), cpu.Registers[i])
+		s = s + fmt.Sprintf("%s=%X", cpu.GetRegName(i), cpu.Registers[i])
 		if i < len(cpu.Registers)-1 {
 			s += " "
 		}
 	}
+	s = s + fmt.Sprintf(" RC=%02x", cpu.RC)
+	s = s + fmt.Sprintf(" SP=%x", cpu.SP)
 	return s
 }
