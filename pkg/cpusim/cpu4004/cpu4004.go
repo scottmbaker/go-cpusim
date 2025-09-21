@@ -661,6 +661,16 @@ func (cpu *CPU4004) Execute() error {
 		return cpu.ExecuteRotate(OP_RAR)
 	}
 
+	if opCode == 0xFD {
+		// DCL
+		cpu.DebugInstr("DCL")
+		acc, err := cpu.GetReg(REG_ACCUM)
+		if err != nil {
+			return err
+		}
+		return cpu.SetReg(REG_CL, acc&0x07)
+	}
+
 	return &cpusim.ErrInvalidOpcode{Device: cpu, Opcode: opCode}
 }
 
