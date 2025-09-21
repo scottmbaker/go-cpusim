@@ -8,7 +8,7 @@ import (
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
-	Registers [20]byte       // 4-bit registers
+	Registers [21]byte       // 4-bit registers
 	Stack     [3]uint16
 	RC        byte
 	SP        byte
@@ -39,6 +39,7 @@ const (
 
 	FLAG_CARRY = 18
 	FLAG_ZERO  = 19
+	FLAG_TEST  = 20
 
 	PAIR_P0 = 0
 	PAIR_P1 = 1
@@ -58,7 +59,7 @@ const (
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
 		Name:      name,
-		Registers: [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Registers: [21]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		Stack:     [3]uint16{0, 0, 0},
 		SP:        0,
 		PC:        0, // Program Counter
@@ -120,6 +121,8 @@ func (cpu *CPU4004) GetRegName(reg int) string {
 		return "C"
 	case FLAG_ZERO:
 		return "Z"
+	case FLAG_TEST:
+		return "T"
 	default:
 		return fmt.Sprintf("R%d", reg)
 	}
@@ -245,7 +248,7 @@ func (cpu *CPU4004) ExecuteLoadImmediate(opCode byte, value byte) error {
 	return cpu.SetReg(REG_ACCUM, value)
 }
 
-func (cpu *CPU4004) ExecuteFetchImmediate(opCode byte, value byte) error {
+func (cpu *CPU4004) ExecuteFetchImmediate(opCode byte) error {
 	destPair := int((opCode >> 1) & 0x07)
 	cpu.PC++
 	value, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
@@ -265,8 +268,11 @@ func (cpu *CPU4004) FetchOpcode() (byte, error) {
 	return opCode, nil
 }
 
-func (cpu *CPU4004) FetchAddr(opCode byte) (uint16, error) {
-	addrHigh := int(opCode & 0x0F)
+func (cpu *CPU4004) FetchAddr(opCode byte, long bool) (uint16, error) {
+	addrHigh := 0
+	if long {
+		addrHigh = int(opCode & 0x0F)
+	}
 	cpu.PC++
 	addrLow, err := cpu.Sim.ReadMemory(cpusim.Address(cpu.PC))
 	if err != nil {
@@ -401,25 +407,59 @@ func (cpu *CPU4004) PushStack(value uint16) {
 	}
 }
 
-func (cpu *CPU4004) ExecuteJump(addr uint16, conditional bool, flag int, istrue bool, iscall bool) error {
-	if conditional {
-		flagValue, err := cpu.GetReg(flag)
-		if err != nil {
-			return err
-		}
-		if (flagValue != 0) != istrue {
-			cpu.DebugJump(conditional, flag, istrue, iscall, addr)
-			return nil // Jump not taken
-		}
+func (cpu *CPU4004) ExecuteJCN(opCode byte) error {
+	addr, err := cpu.FetchAddr(opCode, false) // 8-bit address
+	if err != nil {
+		return err
 	}
 
+	c1 := (opCode >> 3) & 0x01 // 1 == invert
+	c2 := (opCode >> 2) & 0x01 // 1 == check accumulator==0
+	c3 := (opCode >> 1) & 0x01 // 1 == check carry==1
+	c4 := opCode & 0x01        // 1 == check test==0
+
+	invert := (c1 == 1)
+	checkAccum := (c2 == 1)
+	checkCarry := (c3 == 1)
+	checkTest := (c4 == 1)
+
+	zero, err := cpu.GetReg(FLAG_ZERO)
+	if err != nil {
+		return err
+	}
+	carry, err := cpu.GetReg(FLAG_CARRY)
+	if err != nil {
+		return err
+	}
+	test, err := cpu.GetReg(FLAG_TEST)
+	if err != nil {
+		return err
+	}
+
+	jump := (!invert && checkAccum && zero == 1) ||
+		(!invert && checkCarry && carry == 1) ||
+		(!invert && checkTest && test == 0) ||
+		(invert && checkAccum && zero == 0) ||
+		(invert && checkCarry && carry == 0) ||
+		(invert && checkTest && test == 0)
+
+	if jump {
+		cpu.PC = addr
+	}
+
+	cpu.DebugJCN(invert, checkAccum, checkCarry, checkTest, addr)
+
+	return nil
+}
+
+func (cpu *CPU4004) ExecuteJump(addr uint16, iscall bool) error {
 	if iscall {
 		cpu.PushStack(cpu.PC)
 	}
 
 	cpu.PC = addr
 
-	cpu.DebugJump(conditional, flag, istrue, iscall, addr)
+	cpu.DebugJump(iscall, addr)
 
 	return nil
 }
@@ -462,11 +502,11 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0x10 {
 		// JCN
-		return nil
+		return cpu.ExecuteJCN(opCode)
 	}
 
 	if opCode&0xF1 == 0x20 {
-		return cpu.ExecuteFetchImmediate(opCode, 0)
+		return cpu.ExecuteFetchImmediate(opCode)
 	}
 
 	if opCode&0xF1 == 0x21 {
@@ -485,20 +525,20 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0x40 {
 		// JUN
-		addr, err := cpu.FetchAddr(opCode)
+		addr, err := cpu.FetchAddr(opCode, true) // 12-bit address
 		if err != nil {
 			return err
 		}
-		return cpu.ExecuteJump(addr, false, 0, false, false)
+		return cpu.ExecuteJump(addr, false)
 	}
 
 	if opCode&0xF0 == 0x50 {
 		// JMS
-		addr, err := cpu.FetchAddr(opCode)
+		addr, err := cpu.FetchAddr(opCode, true) // 12-bit address
 		if err != nil {
 			return err
 		}
-		return cpu.ExecuteJump(addr, false, 0, false, true)
+		return cpu.ExecuteJump(addr, true)
 	}
 
 	if opCode&0xF0 == 0x60 {

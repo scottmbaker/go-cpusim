@@ -10,12 +10,29 @@ func (cpu *CPU4004) DebugInstr(format string, args ...interface{}) {
 	}
 }
 
-func (cpu *CPU4004) DebugJump(conditional bool, flag int, isTrue bool, isCall bool, addr uint16) {
-	_ = conditional
-	_ = flag
-	_ = isTrue
-	_ = isCall
-	_ = addr
+func (cpu *CPU4004) DebugJump(isCall bool, addr uint16) {
+	if isCall {
+		cpu.DebugInstr("JMS %02xh", addr)
+	} else {
+		cpu.DebugInstr("JUN %02xh", addr)
+	}
+}
+
+func (cpu *CPU4004) DebugJCN(invert, checkAccum, checkCarry, checkTest bool, addr uint16) {
+	conditions := ""
+	if checkAccum {
+		conditions += "A"
+	}
+	if checkCarry {
+		conditions += "C"
+	}
+	if checkTest {
+		conditions += "T"
+	}
+	if invert {
+		conditions += "N"
+	}
+	cpu.DebugInstr("JCN %s, %02xh", conditions, addr)
 }
 
 func (cpu *CPU4004) DebugRet(value byte) {
