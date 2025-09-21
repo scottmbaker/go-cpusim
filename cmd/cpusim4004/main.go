@@ -50,9 +50,12 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddMemory(ram)
 	sim.AddMemory(rom)
 
+	b8b := cpu4004.NewBus8Bit(sim, "bus8", cpu.DCLEnabler(3))
+	sim.AddMemory(b8b)
+
 	// Create an 8251 UART
 	uart := cpusim.NewUART(sim, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
-	sim.AddPort(uart)
+	b8b.AddPort(uart)
 
 	// Next we load the ROM, from a file on disk.
 	err := rom.Load(romFilename)

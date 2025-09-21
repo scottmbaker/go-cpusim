@@ -38,7 +38,6 @@ func (d *DipSwitch) WriteStatus(address Address, statusAddr Address, value byte)
 	_ = statusAddr
 	_ = value
 	return &ErrNotImplemented{Device: d}
-
 }
 
 func (d *DipSwitch) ReadStatus(address Address, statusAddr Address) (byte, error) {
