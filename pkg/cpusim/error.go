@@ -58,3 +58,16 @@ func (e *ErrInvalidOpcode) Error() string {
 		return fmt.Sprintf("Invalid opcode: %02X", e.Opcode)
 	}
 }
+
+type ErrInvalidOperation struct {
+	Device    DeviceInterface
+	Operation byte
+}
+
+func (e *ErrInvalidOperation) Error() string {
+	if e.Device != nil {
+		return fmt.Sprintf("Device %s Invalid operation: %02X", e.Device.GetName(), e.Operation)
+	} else {
+		return fmt.Sprintf("Invalid opcode: %02X", e.Operation)
+	}
+}

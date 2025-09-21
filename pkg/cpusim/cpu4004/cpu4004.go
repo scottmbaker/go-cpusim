@@ -8,7 +8,7 @@ import (
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
-	Registers [21]byte       // 4-bit registers
+	Registers [20]byte       // 4-bit registers
 	Stack     [3]uint16
 	RC        byte
 	SP        byte
@@ -38,8 +38,7 @@ const (
 	REG_CL    = 17
 
 	FLAG_CARRY = 18
-	FLAG_ZERO  = 19
-	FLAG_TEST  = 20
+	FLAG_TEST  = 19
 
 	PAIR_P0 = 0
 	PAIR_P1 = 1
@@ -54,12 +53,16 @@ const (
 
 	OP_ADD = 0
 	OP_SUB = 1
+	OP_INC = 2
+	OP_DEC = 3
+	OP_RAL = 4
+	OP_RAR = 5
 )
 
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
 		Name:      name,
-		Registers: [21]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Registers: [20]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 		Stack:     [3]uint16{0, 0, 0},
 		SP:        0,
 		PC:        0, // Program Counter
@@ -119,8 +122,6 @@ func (cpu *CPU4004) GetRegName(reg int) string {
 		return "CL"
 	case FLAG_CARRY:
 		return "C"
-	case FLAG_ZERO:
-		return "Z"
 	case FLAG_TEST:
 		return "T"
 	default:
@@ -348,12 +349,8 @@ func (cpu *CPU4004) updateArithFlags(work int) error {
 }
 
 func (cpu *CPU4004) UpdateIncFlags(work int) error {
-	// everything but carry
-	err := cpu.SetReg(FLAG_ZERO, toBit((work&0xFF) == 0))
-	if err != nil {
-		return err
-	}
-	return err
+	_ = work
+	return nil
 }
 
 func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
@@ -364,11 +361,14 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		return err
 	}
 
-	reg := int(opCode & 0x07)
-
-	val, err := cpu.GetReg(reg)
-	if err != nil {
-		return err
+	reg := 0 // register is not used for IAC or DAC
+	var val byte
+	if op == OP_ADD || op == OP_SUB {
+		reg = int(opCode & 0x07)
+		val, err = cpu.GetReg(reg)
+		if err != nil {
+			return err
+		}
 	}
 
 	work = int(acc)
@@ -386,6 +386,10 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		if carryBit != 0 {
 			work = work - 1
 		}
+	case OP_INC:
+		work = work + 1
+	case OP_DEC:
+		work = work - 1
 	}
 
 	err = cpu.updateArithFlags(work)
@@ -397,6 +401,39 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	cpu.DebugAccumulator(op, reg)
 
 	return cpu.SetReg(REG_ACCUM, acc)
+}
+
+func (cpu *CPU4004) ExecuteRotate(op int) error {
+	carryBit, _ := cpu.GetReg(FLAG_CARRY)
+
+	acc, err := cpu.GetReg(REG_ACCUM)
+	if err != nil {
+		return err
+	}
+
+	if op == OP_RAL {
+		newCarry := (acc >> 3) & 0x01
+		acc = ((acc << 1) & 0x0F) | carryBit
+		err := cpu.SetReg(FLAG_CARRY, newCarry)
+		if err != nil {
+			return err
+		}
+		cpu.DebugInstr("RAL")
+		return cpu.SetReg(REG_ACCUM, acc)
+	}
+
+	if op == OP_RAR {
+		newCarry := acc & 0x01
+		acc = (acc >> 1) | ((carryBit << 3) & 0x0F)
+		err := cpu.SetReg(FLAG_CARRY, newCarry)
+		if err != nil {
+			return err
+		}
+		cpu.DebugInstr("RAR")
+		return cpu.SetReg(REG_ACCUM, acc)
+	}
+
+	return &cpusim.ErrInvalidOperation{Device: cpu, Operation: byte(op)}
 }
 
 func (cpu *CPU4004) PushStack(value uint16) {
@@ -423,7 +460,7 @@ func (cpu *CPU4004) ExecuteJCN(opCode byte) error {
 	checkCarry := (c3 == 1)
 	checkTest := (c4 == 1)
 
-	zero, err := cpu.GetReg(FLAG_ZERO)
+	acc, err := cpu.GetReg(REG_ACCUM)
 	if err != nil {
 		return err
 	}
@@ -436,10 +473,12 @@ func (cpu *CPU4004) ExecuteJCN(opCode byte) error {
 		return err
 	}
 
-	jump := (!invert && checkAccum && zero == 1) ||
+	zero := (acc == 0)
+
+	jump := (!invert && checkAccum && zero) ||
 		(!invert && checkCarry && carry == 1) ||
 		(!invert && checkTest && test == 0) ||
-		(invert && checkAccum && zero == 0) ||
+		(invert && checkAccum && !zero) ||
 		(invert && checkCarry && carry == 0) ||
 		(invert && checkTest && test == 0)
 
@@ -568,6 +607,58 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF0 == 0xC0 {
 		return cpu.ExecuteBBL(opCode & 0x0F)
+	}
+
+	if opCode == 0xF0 {
+		cpu.DebugInstr("CLB")
+		err := cpu.SetReg(FLAG_CARRY, 0)
+		if err != nil {
+			return err
+		}
+		return cpu.SetReg(REG_ACCUM, 0)
+	}
+
+	if opCode == 0xF1 {
+		cpu.DebugInstr("CLC")
+		return cpu.SetReg(FLAG_CARRY, 0)
+	}
+
+	if opCode == 0xFA {
+		cpu.DebugInstr("STC")
+		return cpu.SetReg(FLAG_CARRY, 1)
+	}
+
+	if opCode == 0xF3 {
+		cpu.DebugInstr("CMC")
+		carry, err := cpu.GetReg(FLAG_CARRY)
+		if err != nil {
+			return err
+		}
+		if carry == 0 {
+			return cpu.SetReg(FLAG_CARRY, 1)
+		} else {
+			return cpu.SetReg(FLAG_CARRY, 0)
+		}
+	}
+
+	if opCode == 0xF2 {
+		// IAC
+		return cpu.ExecuteAccumulator(opCode, OP_INC)
+	}
+
+	if opCode == 0xF8 {
+		// DAC
+		return cpu.ExecuteAccumulator(opCode, OP_DEC)
+	}
+
+	if opCode == 0xF6 {
+		// RAL
+		return cpu.ExecuteRotate(OP_RAL)
+	}
+
+	if opCode == 0xF7 {
+		// RAR
+		return cpu.ExecuteRotate(OP_RAR)
 	}
 
 	return &cpusim.ErrInvalidOpcode{Device: cpu, Opcode: opCode}
