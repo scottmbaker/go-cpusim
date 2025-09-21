@@ -1,4 +1,4 @@
-package cpu8008
+package cpu4004
 
 import (
 	"bytes"
@@ -63,11 +63,12 @@ func (p *TestPort) GetName() string {
 	return "testport"
 }
 
-type Cpu8008Suite struct {
+type Cpu4004Suite struct {
 	suite.Suite
 	sim        *cpusim.CpuSim
-	cpu        *CPU8008
+	cpu        *CPU4004
 	ram        *cpusim.Memory
+	rom        *cpusim.Memory
 	testPort   *TestPort
 	testBinDir string
 }
@@ -82,21 +83,22 @@ func getTestName() string {
 	return parts[len(parts)-1]
 }
 
-func (s *Cpu8008Suite) SetupTest() {
+func (s *Cpu4004Suite) SetupTest() {
 	s.sim = cpusim.NewCPUSim()
 
 	// Create an 8008 CPU and attach it to the simulator
-	s.cpu = New8008(s.sim, "cpu")
+	s.cpu = New4004(s.sim, "cpu")
 	s.sim.AddCPU(s.cpu)
 
-	s.ram = cpusim.NewMemory(s.sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3FFF, 14, false, &cpusim.AlwaysEnabled)
+	s.rom = cpusim.NewMemory(s.sim, "rom", cpusim.KIND_ROM, 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
+	s.sim.AddMemory(s.rom)
+
+	s.ram = cpusim.NewMemory(s.sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3F, 6, false, s.cpu.DCLEnabler(0))
+	s.ram.CreateStatusBytes(0x40, 0x04)
 	s.sim.AddMemory(s.ram)
 
-	s.testPort = &TestPort{Sim: s.sim,
-		in:  [8]byte{0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7},
-		out: [32]byte{},
-	}
-	s.sim.AddPort(s.testPort)
+	b8b := NewBus8Bit(s.sim, "bus8", s.cpu.DCLEnabler(4))
+	s.sim.AddMemory(b8b)
 
 	s.testBinDir = "testbin"
 
@@ -104,7 +106,7 @@ func (s *Cpu8008Suite) SetupTest() {
 	s.Require().NoError(err, "Failed to create directory: ../../testbin")
 }
 
-func (s *Cpu8008Suite) run(command string, args ...string) (string, string, error) {
+func (s *Cpu4004Suite) run(command string, args ...string) (string, string, error) {
 	cmd := exec.Command(command, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -113,7 +115,7 @@ func (s *Cpu8008Suite) run(command string, args ...string) (string, string, erro
 	return stdout.String(), stderr.String(), err
 }
 
-func (s *Cpu8008Suite) assemble(program string) string {
+func (s *Cpu4004Suite) assemble(program string) string {
 	stem := filepath.Join(s.testBinDir, getTestName())
 	asmFile := stem + ".asm"
 	pFile := stem + ".p"
@@ -142,7 +144,7 @@ func (s *Cpu8008Suite) assemble(program string) string {
 	_, err = file.WriteString(program)
 	s.Require().NoError(err, "Failed to write to file: "+asmFile)
 
-	_, stderr, err := s.run(ASL, "-cpu", "8008", "-L", asmFile, "-o", pFile)
+	_, stderr, err := s.run(ASL, "-cpu", "4004", "-L", asmFile, "-o", pFile)
 	if err != nil {
 		_ = os.Remove(pFile)
 	}
@@ -157,11 +159,14 @@ func (s *Cpu8008Suite) assemble(program string) string {
 	return binFile
 }
 
-func (s *Cpu8008Suite) AssembleAndLoad(program string) {
+func (s *Cpu4004Suite) AssembleAndLoad(program string) {
 	var indentedProgram string
 	header := `
-cpu 8008new             ; use "new" 8008 mnemonics
+cpu 4040                ; use 4040 for halt instruction
 radix 10                ; use base 10 for numbers
+
+include "../testdata/reg4004.inc"   ; Include 4004 register definitions.
+
 org 0
     `
 	for _, line := range strings.Split(header+program, "\n") {
@@ -175,80 +180,140 @@ org 0
 	}
 
 	binFile := s.assemble(indentedProgram)
-	err := s.ram.Load(binFile)
+	err := s.rom.Load(binFile)
 	s.Require().NoError(err, "Failed to load binary file: "+binFile)
 }
 
-func (s *Cpu8008Suite) TestIncrement() {
-	s.cpu.Registers[REG_B] = 0 // Set register B to 0
+func (s *Cpu4004Suite) TestIncrement() {
+	s.cpu.Registers[REG_R3] = 0     // Set register R3 to 0
+	s.cpu.Registers[FLAG_CARRY] = 0 // Make sure carry is unset
 	s.AssembleAndLoad(`
-INR B
+INC R3
 HLT
 `)
 	err := s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(1), s.cpu.Registers[REG_B])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
+	s.Equal(byte(1), s.cpu.Registers[REG_R3])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 
 	s.cpu.PC = 0 // Reset program counter to start
 	err = s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(2), s.cpu.Registers[REG_B])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
+	s.Equal(byte(2), s.cpu.Registers[REG_R3])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 
 	s.cpu.PC = 0 // Reset program counter to start
 	err = s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(3), s.cpu.Registers[REG_B])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
+	s.Equal(byte(3), s.cpu.Registers[REG_R3])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 
-	s.cpu.Registers[REG_B] = 255 // Set register B to 255
-	s.cpu.PC = 0                 // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 255 // Set register R3 to 255
+	s.cpu.PC = 0                  // Reset program counter to start
 	err = s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(0), s.cpu.Registers[REG_B])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
+	s.Equal(byte(0), s.cpu.Registers[REG_R3])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY]) // carry is not set during increment
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 0
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(1), s.cpu.Registers[REG_R3])
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY]) // carry should be unaffected
 }
 
-func (s *Cpu8008Suite) TestDecrement() {
-	s.cpu.Registers[REG_B] = 1 // Set register B to 1
+func (s *Cpu4004Suite) TestRegs() {
 	s.AssembleAndLoad(`
-DCR B
+LDM 0
+XCH R0
+LDM 1
+XCH R1
+LDM 2
+XCH R2
+LDM 3
+XCH R3
+LDM 4
+XCH R4
+LDM 5
+XCH R5
+LDM 6
+XCH R6
+LDM 7
+XCH R7
+LDM 8
+XCH R8
+LDM 9
+XCH R9
+LDM 10
+XCH R10
+LDM 11
+XCH R11
+LDM 12
+XCH R12
+LDM 13
+XCH R13
+LDM 14
+XCH R14
+LDM 15
+XCH R15
 HLT
 `)
 	err := s.cpu.Run()
 	s.NoError(err)
-	s.Equal(byte(0), s.cpu.Registers[REG_B])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_SIGN])
 
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(255), s.cpu.Registers[REG_B])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_SIGN])
-
-	s.cpu.PC = 0 // Reset program counter to start
-	err = s.cpu.Run()
-	s.NoError(err)
-	s.Equal(byte(254), s.cpu.Registers[REG_B])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_ZERO])
-	s.Equal(byte(0), s.cpu.Registers[FLAG_PARITY])
-	s.Equal(byte(1), s.cpu.Registers[FLAG_SIGN])
+	for i := 0; i <= 15; i++ {
+		s.Equal(byte(i), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i))
+	}
 }
 
-func (s *Cpu8008Suite) TestADI() {
+func (s *Cpu4004Suite) TestRegs2() {
+	s.AssembleAndLoad(`
+LDM 0
+XCH R0	; R0 = 0
+LDM 9
+XCH R9	; R9 = 9
+LDM 12
+XCH R12	; R12 = 12
+LDM 7
+XCH R9   ; accum = R9 (9), R9 = 7
+XCH R0	 ; accum = R0 (0), R0 = 9
+XCH R12  ; accum = R12 (12), R12 = 9
+HLT
+`)
+	s.cpu.PC = 0 // Reset program counter to start
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(9), s.cpu.Registers[REG_R0], "Register R00 should be %02X", byte(9))
+	s.Equal(byte(7), s.cpu.Registers[REG_R9], "Register R09 should be %02X", byte(7))
+	s.Equal(byte(0), s.cpu.Registers[REG_R12], "Register R12 should be %02X", byte(0))
+	s.Equal(byte(12), s.cpu.Registers[REG_ACCUM], "Register A should be %02X", byte(12))
+}
+
+func (s *Cpu4004Suite) TestPairs() {
+	s.AssembleAndLoad(`
+FIM P0, 01H
+FIM P1, 23H
+FIM P2, 45H
+FIM P3, 67H
+FIM P4, 89H
+FIM P5, 0ABH
+FIM P6, 0CDH
+FIM P7, 0EFH
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	for i := 0; i <= 15; i++ {
+		s.Equal(byte(i), s.cpu.Registers[REG_R0+i], "Register R%02d should be %02X", i, byte(i))
+	}
+}
+
+/*
+func (s *Cpu4004Suite) TestADI() {
 	s.cpu.Registers[REG_A] = 0 // Set register B to 0
 	s.AssembleAndLoad(`
 ADI 1
@@ -291,7 +356,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestSUI() {
+func (s *Cpu4004Suite) TestSUI() {
 	s.cpu.Registers[REG_A] = 1 // Set register A to 1
 	s.AssembleAndLoad(`
 SUI 1
@@ -324,7 +389,7 @@ HLT
 	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestJZ() {
+func (s *Cpu4004Suite) TestJZ() {
 	s.AssembleAndLoad(`
 ORA A
 JZ L1
@@ -345,7 +410,7 @@ HLT
 	s.Equal(byte(2), s.cpu.Registers[REG_B])
 }
 
-func (s *Cpu8008Suite) TestJNZ() {
+func (s *Cpu4004Suite) TestJNZ() {
 	s.AssembleAndLoad(`
 ORA A
 JNZ L1
@@ -366,7 +431,7 @@ HLT
 	s.Equal(byte(3), s.cpu.Registers[REG_B])
 }
 
-func (s *Cpu8008Suite) TestMOV() {
+func (s *Cpu4004Suite) TestMOV() {
 	s.AssembleAndLoad(`
 MVI A, 12H
 MOV B,A
@@ -394,7 +459,7 @@ HLT
 	s.Equal(byte(0x18), s.cpu.Registers[REG_L])
 }
 
-func (s *Cpu8008Suite) TestMOVM() {
+func (s *Cpu4004Suite) TestMOVM() {
 	err := s.ram.Write(0x1234, 0x56)
 	s.NoError(err)
 	s.AssembleAndLoad(`
@@ -417,7 +482,7 @@ HLT
 	s.Equal(byte(0x5D), value)
 }
 
-func (s *Cpu8008Suite) TestCall() {
+func (s *Cpu4004Suite) TestCall() {
 	s.AssembleAndLoad(`
 MVI D, 45H
 MVI E, 54H
@@ -466,7 +531,7 @@ RET
 	s.Equal(byte(0x5A), s.cpu.Registers[REG_E])
 }
 
-func (s *Cpu8008Suite) TestLogical() {
+func (s *Cpu4004Suite) TestLogical() {
 	s.AssembleAndLoad(`
 MVI A, 12H
 ANI 03H
@@ -490,7 +555,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
 }
 
-func (s *Cpu8008Suite) TestLogicalReg() {
+func (s *Cpu4004Suite) TestLogicalReg() {
 	s.AssembleAndLoad(`
 MVI A, 12H
 MVI B, 03H
@@ -517,7 +582,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_ZERO])
 }
 
-func (s *Cpu8008Suite) TestIn() {
+func (s *Cpu4004Suite) TestIn() {
 	s.AssembleAndLoad(`
 IN 3
 HLT
@@ -527,7 +592,7 @@ HLT
 	s.Equal(byte(0xC3), s.cpu.Registers[REG_A])
 }
 
-func (s *Cpu8008Suite) TestOut() {
+func (s *Cpu4004Suite) TestOut() {
 	s.AssembleAndLoad(`
 MVI A,0A0h
 OUT 08H
@@ -586,7 +651,7 @@ HLT
 	}
 }
 
-func (s *Cpu8008Suite) TestRotate() {
+func (s *Cpu4004Suite) TestRotate() {
 	s.AssembleAndLoad(`
 MVI	A,1
 RLC
@@ -608,7 +673,7 @@ HLT
 	s.Equal(byte(0x80), s.cpu.Registers[REG_E])
 }
 
-func (s *Cpu8008Suite) TestRAL() {
+func (s *Cpu4004Suite) TestRAL() {
 	s.AssembleAndLoad(`
 MVI	A,80h
 RAL
@@ -620,7 +685,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestRALWithCarry() {
+func (s *Cpu4004Suite) TestRALWithCarry() {
 	s.cpu.Registers[FLAG_CARRY] = 1
 	s.AssembleAndLoad(`
 MVI	A,40h
@@ -633,7 +698,7 @@ HLT
 	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestRAR() {
+func (s *Cpu4004Suite) TestRAR() {
 	s.AssembleAndLoad(`
 MVI	A,1h
 RAR
@@ -645,7 +710,7 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestRARWithCarrt() {
+func (s *Cpu4004Suite) TestRARWithCarrt() {
 	s.cpu.Registers[FLAG_CARRY] = 1
 	s.AssembleAndLoad(`
 MVI	A,04h
@@ -658,7 +723,7 @@ HLT
 	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
 }
 
-func (s *Cpu8008Suite) TestRST() {
+func (s *Cpu4004Suite) TestRST() {
 	s.AssembleAndLoad(`
 JMP L1
 ORG 8h
@@ -702,7 +767,8 @@ HLT
 	s.Equal(byte(0x07), s.cpu.Registers[REG_L])
 	s.Equal(byte(0x08), s.cpu.Registers[REG_A])
 }
+*/
 
-func TestCpu8008Suite(t *testing.T) {
-	suite.Run(t, new(Cpu8008Suite))
+func TestCpu4004Suite(t *testing.T) {
+	suite.Run(t, new(Cpu4004Suite))
 }

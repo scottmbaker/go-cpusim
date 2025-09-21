@@ -319,10 +319,6 @@ func (cpu *CPU4004) ExecuteInc(opCode byte) error {
 	}
 
 	work = int(value) + 1
-	err = cpu.UpdateIncFlags(work)
-	if err != nil {
-		return err
-	}
 	value = byte(work & 0x0F)
 
 	cpu.DebugInc(reg)
@@ -340,10 +336,6 @@ func (cpu *CPU4004) ExecuteIncSkip(opCode byte) error {
 	}
 
 	work = int(value) + 1
-	err = cpu.UpdateIncFlags(work)
-	if err != nil {
-		return err
-	}
 
 	addrLow, err := cpu.FetchOpcode()
 	if err != nil {
@@ -376,12 +368,6 @@ func (cpu *CPU4004) updateArithFlags(op int, work int) error {
 	if err != nil {
 		return err
 	}
-	err = cpu.UpdateIncFlags(work)
-	return err
-}
-
-func (cpu *CPU4004) UpdateIncFlags(work int) error {
-	_ = work
 	return nil
 }
 
@@ -650,8 +636,14 @@ func (cpu *CPU4004) Execute() error {
 		return nil
 	}
 
+	if opCode == 0x01 {
+		cpu.DebugInstr("HALT-4040")
+		cpu.Halted = true
+		return nil
+	}
+
 	if opCode == 0x07 {
-		cpu.DebugInstr("AN7-4004-NOP")
+		cpu.DebugInstr("AN7-4040-NOP")
 		return nil
 	}
 
