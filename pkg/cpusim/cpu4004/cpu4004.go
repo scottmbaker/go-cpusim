@@ -57,7 +57,14 @@ const (
 	OP_DEC = 3
 	OP_RAL = 4
 	OP_RAR = 5
+	OP_TCC = 6
+	OP_TCS = 7
+	OP_DAA = 8
+	OP_KBP = 9
+	OP_CMA = 10
 )
+
+var KBPTable = [16]int{0, 1, 2, 3, 4, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15}
 
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
@@ -361,7 +368,12 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		return err
 	}
 
-	reg := 0 // register is not used for IAC or DAC
+	carryBit, err := cpu.GetReg(FLAG_CARRY)
+	if err != nil {
+		return err
+	}
+
+	reg := 0 // only ADD and SUB need the register
 	var val byte
 	if op == OP_ADD || op == OP_SUB {
 		reg = int(opCode & 0x07)
@@ -376,13 +388,11 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 	switch op {
 	case OP_ADD:
 		work = work + int(val)
-		carryBit, _ := cpu.GetReg(FLAG_CARRY)
 		if carryBit != 0 {
 			work = work + 1
 		}
 	case OP_SUB:
 		work = work - int(val)
-		carryBit, _ := cpu.GetReg(FLAG_CARRY)
 		if carryBit != 0 {
 			work = work - 1
 		}
@@ -390,6 +400,20 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		work = work + 1
 	case OP_DEC:
 		work = work - 1
+	case OP_DAA:
+		if (acc&0x0F) > 9 || (carryBit != 0) {
+			work = work + 6
+		}
+	case OP_TCS:
+		if carryBit != 0 {
+			work = 10
+		} else {
+			work = 9
+		}
+	case OP_KBP:
+		work = KBPTable[work&0x0F]
+	case OP_CMA:
+		work = (^work) & 0x0F
 	}
 
 	err = cpu.updateArithFlags(work)
@@ -623,9 +647,9 @@ func (cpu *CPU4004) Execute() error {
 		return cpu.SetReg(FLAG_CARRY, 0)
 	}
 
-	if opCode == 0xFA {
-		cpu.DebugInstr("STC")
-		return cpu.SetReg(FLAG_CARRY, 1)
+	if opCode == 0xF2 {
+		// IAC
+		return cpu.ExecuteAccumulator(opCode, OP_INC)
 	}
 
 	if opCode == 0xF3 {
@@ -641,9 +665,33 @@ func (cpu *CPU4004) Execute() error {
 		}
 	}
 
-	if opCode == 0xF2 {
-		// IAC
-		return cpu.ExecuteAccumulator(opCode, OP_INC)
+	if opCode == 0xF4 {
+		// CMA
+		return cpu.ExecuteAccumulator(opCode, OP_CMA)
+	}
+
+	if opCode == 0xF5 {
+		// RAL
+		return cpu.ExecuteRotate(OP_RAL)
+	}
+
+	if opCode == 0xF6 {
+		// RAR
+		return cpu.ExecuteRotate(OP_RAR)
+	}
+
+	if opCode == 0xF7 {
+		// TCC
+		cpu.DebugInstr("TCC")
+		carry, err := cpu.GetReg(FLAG_CARRY)
+		if err != nil {
+			return err
+		}
+		err = cpu.SetReg(FLAG_CARRY, 0)
+		if err != nil {
+			return err
+		}
+		return cpu.SetReg(REG_ACCUM, carry)
 	}
 
 	if opCode == 0xF8 {
@@ -651,14 +699,24 @@ func (cpu *CPU4004) Execute() error {
 		return cpu.ExecuteAccumulator(opCode, OP_DEC)
 	}
 
-	if opCode == 0xF6 {
-		// RAL
-		return cpu.ExecuteRotate(OP_RAL)
+	if opCode == 0xF9 {
+		// TCS
+		return cpu.ExecuteAccumulator(opCode, OP_TCS)
 	}
 
-	if opCode == 0xF7 {
-		// RAR
-		return cpu.ExecuteRotate(OP_RAR)
+	if opCode == 0xFA {
+		cpu.DebugInstr("STC")
+		return cpu.SetReg(FLAG_CARRY, 1)
+	}
+
+	if opCode == 0xFB {
+		// DAA
+		return cpu.ExecuteAccumulator(opCode, OP_DAA)
+	}
+
+	if opCode == 0xFC {
+		// KBP
+		return cpu.ExecuteAccumulator(opCode, OP_KBP)
 	}
 
 	if opCode == 0xFD {

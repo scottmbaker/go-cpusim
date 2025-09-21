@@ -47,6 +47,20 @@ func (cpu CPU4004) DebugAccumulator(op int, reg int) {
 		cpu.DebugInstr("ADD %s", regName)
 	case OP_SUB:
 		cpu.DebugInstr("SUB %s", regName)
+	case OP_TCS:
+		cpu.DebugInstr("TCS")
+	case OP_INC:
+		cpu.DebugInstr("DAC")
+	case OP_DEC:
+		cpu.DebugInstr("IAC")
+	case OP_DAA:
+		cpu.DebugInstr("DAA")
+	case OP_TCC:
+		cpu.DebugInstr("TCC")
+	case OP_KBP:
+		cpu.DebugInstr("KBP")
+	case OP_CMA:
+		cpu.DebugInstr("CMA")
 	}
 }
 
