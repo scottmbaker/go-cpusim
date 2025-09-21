@@ -352,8 +352,14 @@ func (cpu *CPU4004) ExecuteIncSkip(opCode byte) error {
 	return nil
 }
 
-func (cpu *CPU4004) updateArithFlags(work int) error {
-	err := cpu.SetReg(FLAG_CARRY, toBit((work&0x100) != 0)) // XXX TODO: check whether carry needs to be inverted
+func (cpu *CPU4004) updateArithFlags(op int, work int) error {
+	var newCarry byte
+	if op == OP_SUB || op == OP_SBM {
+		newCarry = toBit((work & 0x10) == 0) // on exit from a SUB or SBM, 0 indicates carry and 1 indicates no carry
+	} else {
+		newCarry = toBit((work & 0x10) != 0)
+	}
+	err := cpu.SetReg(FLAG_CARRY, newCarry)
 	if err != nil {
 		return err
 	}
@@ -477,7 +483,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int) error {
 		work = (^work) & 0x0F
 	}
 
-	err = cpu.updateArithFlags(work)
+	err = cpu.updateArithFlags(op, work)
 	if err != nil {
 		return err
 	}
