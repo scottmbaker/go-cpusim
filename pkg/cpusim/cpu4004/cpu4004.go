@@ -386,8 +386,8 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 		// ramport
 		return nil
 	case 2:
-		// romport
-		return nil
+		cpu.Sim.FilterPortKind(cpusim.KIND_ROMPORT)
+		return cpu.Sim.WritePort(cpusim.Address(cpu.RC), acc)
 	case 4, 5, 6, 7:
 		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		return cpu.Sim.WriteMemoryStatus(cpusim.Address(cpu.RC), cpusim.Address(where-4), acc)

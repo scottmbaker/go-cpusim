@@ -1,7 +1,7 @@
 package cpusim
 
 import (
-// "fmt"
+//"fmt"
 )
 
 // 74LS670 style memory mapper
@@ -18,6 +18,7 @@ type Map670 struct {
 	Contents           [16]byte
 	ConnectedEnableBit [8]*EnableBit
 	Enabler            EnablerInterface
+	MemoryFilter       string
 }
 
 func (m *Map670) GetName() string {
@@ -82,6 +83,14 @@ func (m *Map670) ConnectEnableBit(bit int, enableBit *EnableBit) {
 
 func (m *Map670) GetKind() string {
 	return KIND_MAPPER
+}
+
+func (m *Map670) FilterMemoryKind(kind string) {
+	m.MemoryFilter = kind
+}
+
+func (m *Map670) MatchMemory(mem MemoryInterface) bool {
+	return m.MemoryFilter == "" || mem.GetKind() == m.MemoryFilter
 }
 
 func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, destBit0, destBit1, destBit2, destBit3 int, enabler EnablerInterface) *Map670 {

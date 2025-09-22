@@ -18,4 +18,5 @@ type MemoryInterface interface {
 
 type MapperInterface interface {
 	Map(address Address) (Address, error)
+	MatchMemory(mem MemoryInterface) bool
 }

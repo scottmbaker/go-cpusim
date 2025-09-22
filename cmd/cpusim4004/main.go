@@ -39,11 +39,11 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	cpu := cpu4004.New4004(sim, "cpu")
 	sim.AddCPU(cpu)
 
-	/*  XXX this needs to be attached to a ROM Port
+	// Setup a mapper for the ROM. It will only filter KIND_ROM devices.
+	// We will attach it to the 4289's ROM port.
 	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled)
+	mapper.FilterMemoryKind(cpusim.KIND_ROM)
 	sim.AddMapper(mapper)
-	sim.AddPort(mapper)
-	*/
 
 	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
 	sim.AddMemory(rom)
@@ -54,6 +54,10 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	b8b := cpu4004.NewBus8Bit(sim, "bus8", cpu.DCLEnabler(4))
 	sim.AddMemory(b8b)
+
+	romPort := cpu4004.NewRomPort(sim, "romport_4289", &cpusim.TrueEnabler{})
+	romPort.AddPort(mapper)
+	sim.AddPort(romPort)
 
 	// Create an 8251 UART
 	uart := cpusim.NewUART(sim, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)

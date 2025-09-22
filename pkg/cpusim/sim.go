@@ -34,11 +34,12 @@ const (
 	D6 = 6
 	D7 = 7
 
-	KIND_RAM    = "RAM"
-	KIND_ROM    = "ROM"
-	KIND_MAPPER = "MAPPER"
-	KIND_UART   = "UART"
-	KIND_INPORT = "INPORT"
+	KIND_RAM     = "RAM"
+	KIND_ROM     = "ROM"
+	KIND_MAPPER  = "MAPPER"
+	KIND_UART    = "UART"
+	KIND_INPORT  = "INPORT"
+	KIND_ROMPORT = "ROMPORT"
 )
 
 type CpuSim struct {
@@ -49,6 +50,7 @@ type CpuSim struct {
 	CtrlC        bool
 	Debug        bool
 	MemoryFilter string
+	PortFilter   string
 }
 
 func NewCPUSim() *CpuSim {
@@ -97,16 +99,31 @@ func (sim *CpuSim) FilterMemoryKind(kind string) {
 	sim.MemoryFilter = kind
 }
 
+func (sim *CpuSim) FilterPortKind(kind string) {
+	sim.PortFilter = kind
+}
+
+func (sim *CpuSim) MatchMemory(mem MemoryInterface) bool {
+	return sim.MemoryFilter == "" || mem.GetKind() == sim.MemoryFilter
+}
+
+func (sim *CpuSim) MatchPort(mem MemoryInterface) bool {
+	return sim.PortFilter == "" || mem.GetKind() == sim.PortFilter
+}
+
 func (sim *CpuSim) WriteMemory(address Address, value byte) error {
 	for _, mapper := range sim.Mappers {
 		var err error
+		if !mapper.MatchMemory(sim.Memory[0]) {
+			continue
+		}
 		address, err = mapper.Map(address)
 		if err != nil {
 			return err
 		}
 	}
 	for _, mem := range sim.Memory {
-		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+		if !sim.MatchMemory(mem) {
 			continue
 		}
 		if mem.HasAddress(address) {
@@ -119,13 +136,16 @@ func (sim *CpuSim) WriteMemory(address Address, value byte) error {
 func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 	for _, mapper := range sim.Mappers {
 		var err error
+		if !mapper.MatchMemory(sim.Memory[0]) {
+			continue
+		}
 		address, err = mapper.Map(address)
 		if err != nil {
 			return 0, err
 		}
 	}
 	for _, mem := range sim.Memory {
-		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+		if !sim.MatchMemory(mem) {
 			continue
 		}
 		if mem.HasAddress(address) {
@@ -137,7 +157,7 @@ func (sim *CpuSim) ReadMemory(address Address) (byte, error) {
 
 func (sim *CpuSim) WriteMemoryStatus(address Address, statusAddr Address, value byte) error {
 	for _, mem := range sim.Memory {
-		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+		if !sim.MatchMemory(mem) {
 			continue
 		}
 		if mem.HasAddress(address) {
@@ -149,7 +169,7 @@ func (sim *CpuSim) WriteMemoryStatus(address Address, statusAddr Address, value 
 
 func (sim *CpuSim) ReadMemoryStatus(address Address, statusAddr Address) (byte, error) {
 	for _, mem := range sim.Memory {
-		if sim.MemoryFilter != "" && mem.GetKind() != sim.MemoryFilter {
+		if !sim.MatchMemory(mem) {
 			continue
 		}
 		if mem.HasAddress(address) {
@@ -161,6 +181,9 @@ func (sim *CpuSim) ReadMemoryStatus(address Address, statusAddr Address) (byte, 
 
 func (sim *CpuSim) ReadPort(port Address) (byte, error) {
 	for _, p := range sim.Ports {
+		if !sim.MatchPort(p) {
+			continue
+		}
 		if p.HasAddress(port) {
 			return p.Read(port)
 		}
@@ -170,6 +193,9 @@ func (sim *CpuSim) ReadPort(port Address) (byte, error) {
 
 func (sim *CpuSim) WritePort(port Address, value byte) error {
 	for _, p := range sim.Ports {
+		if !sim.MatchPort(p) {
+			continue
+		}
 		if p.HasAddress(port) {
 			return p.Write(port, value)
 		}
