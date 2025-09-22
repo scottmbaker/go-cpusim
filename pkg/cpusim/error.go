@@ -74,12 +74,18 @@ func (e *ErrInvalidOperation) Error() string {
 
 type ErrNotImplemented struct {
 	Device DeviceInterface
+	What   string
 }
 
 func (e *ErrNotImplemented) Error() string {
+	var msg string
 	if e.Device != nil {
-		return fmt.Sprintf("Device %s: Not implemented", e.Device.GetName())
+		msg = fmt.Sprintf("Device %s: Not implemented", e.Device.GetName())
 	} else {
-		return "Not implemented"
+		msg = "Not implemented"
 	}
+	if e.What != "" {
+		msg += ": " + e.What
+	}
+	return msg
 }

@@ -698,6 +698,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF1 == 0x31 {
 		// JIN
+		return &cpusim.ErrNotImplemented{Device: cpu, What: "JIN"}
 	}
 
 	if opCode&0xF0 == 0x40 {
