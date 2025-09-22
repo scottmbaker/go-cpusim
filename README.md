@@ -1,10 +1,14 @@
-# An 8008 CPU Emulator in Go
+# An 8008, 4004, and 4040 CPU Emulator in Go
 
 Scott Baker, https://medium.com/@smbaker
 
 This repository contains a CPU emulator in Go. The emulator is
-intended to be extensible to different CPUs, though for now my
+intended to be extensible to different CPUs, though my initial
 intention is only to emulate the Intel 8008.
+
+In September 2025 I extended the emulator to support the 4004
+as well as the subset of instructions that are common between
+the 4004 and 4040.
 
 This project is the result of a personal challenge to myself to
 write a CPU emulator, in go, in one day. I pulled it off, but it was
@@ -21,6 +25,9 @@ one really long day... :)
   one ROM device, to hold program contents and one RAM device to service
   as transient data storage space.
 
+  For the 4004, Memory also supports 4 status bytes per every 16 data
+  bytes. 4004 is weird.
+
 * UART. UART is a Universal Asynchronour Receiver Transmitter, and its
   job is basically to provide serial IO. This lets us interact with the
   running program with a keyboard and screen.
@@ -33,11 +40,15 @@ one really long day... :)
   memory mapper locate ROM at 0x0000 on bootstrap and then later remap
   that space as RAM.
 
+* 4004 8-bit bus. For one of my 4004 projects, I designed an 8-bit bus
+  interface. This interface used a series of latches an transceivers
+  together with 4265. This 8-bit-bus extender is upported.
+
 I should stree that this emulates a real, functional computer. I have
 assembled an 8008-based single board computer with exactly the hardware
 elements listed here. 
 
-## Software Supported
+## 8008 Software Supported
 
 Basically anything that can be started from ROM is supported.
 
@@ -77,7 +88,7 @@ To run use the monitor rom, do the following:
 
 ```bash
 $ make build
-$ build/_output/cpusim -f roms/sbc-8251.rom
+$ build/_output/cpusim8008 -f roms/sbc-8251.rom
 ```
 
 The output should look like this:
