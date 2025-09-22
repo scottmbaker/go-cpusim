@@ -224,6 +224,176 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY]) // carry should be unaffected
 }
 
+func (s *Cpu4004Suite) TestIAC() {
+	s.cpu.Registers[REG_ACCUM] = 0 // Set register R3 to 0
+	s.AssembleAndLoad(`
+IAC
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.Registers[FLAG_CARRY] = 1
+	s.cpu.PC = 0 // Reset program counter to start
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(3), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 0x0F
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+}
+
+func (s *Cpu4004Suite) TestDAC() {
+	s.cpu.Registers[REG_ACCUM] = 0x0F // Set register R3 to 0
+	s.AssembleAndLoad(`
+DAC
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0E), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0D), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.Registers[FLAG_CARRY] = 1
+	s.cpu.PC = 0 // Reset program counter to start
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0C), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_ACCUM] = 0x00
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0F), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+}
+
+func (s *Cpu4004Suite) TestRAL() {
+	s.cpu.Registers[REG_ACCUM] = 0x01 // Set register ACCUM to 1
+	s.AssembleAndLoad(`
+RAL
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x02), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x01
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x05), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x00
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0A), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x00
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x04), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
+}
+
+func (s *Cpu4004Suite) TestRAR() {
+	s.cpu.Registers[REG_ACCUM] = 0x08 // Set register ACCUM to 0x08
+	s.AssembleAndLoad(`
+RAR
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x04), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x01
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x0A), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x00
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x05), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x00
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0x02), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY])
+}
+
+func (s *Cpu4004Suite) TestTCC() {
+	s.cpu.Registers[REG_ACCUM] = 0x06 // Set register ACCUM to 0x06
+	s.AssembleAndLoad(`
+TCC
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x01
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+}
+
+func (s *Cpu4004Suite) TestTCS() {
+	s.cpu.Registers[REG_ACCUM] = 0x06 // Set register ACCUM to 0x06
+	s.AssembleAndLoad(`
+TCS
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(9), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0x01
+	err = s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(10), s.cpu.Registers[REG_ACCUM])
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY])
+}
+
 func (s *Cpu4004Suite) TestExchange() {
 	s.AssembleAndLoad(`
 LDM 0
@@ -392,6 +562,22 @@ HLT
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 
+func (s *Cpu4004Suite) TestSubBug() {
+	s.AssembleAndLoad(`
+LDM 15
+XCH R9
+LDM 15
+CLC
+SUB R9
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x02")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+}
+
 func (s *Cpu4004Suite) TestSBM() {
 	s.AssembleAndLoad(`
 FIM P7, 00H
@@ -418,6 +604,93 @@ HLT
 	s.NoError(err)
 
 	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x01")
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+}
+
+func (s *Cpu4004Suite) TestSTC() {
+	s.AssembleAndLoad(`
+STC
+HLT
+`)
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+}
+
+func (s *Cpu4004Suite) TestCLC() {
+	s.AssembleAndLoad(`
+CLC
+HLT
+`)
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+}
+
+func (s *Cpu4004Suite) TestCLB() {
+	s.AssembleAndLoad(`
+CLB
+HLT
+`)
+	s.cpu.Registers[FLAG_CARRY] = 1
+	s.cpu.Registers[REG_ACCUM] = 0x03
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+	s.Equal(byte(0), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0")
+}
+
+func (s *Cpu4004Suite) TestCMC() {
+	s.AssembleAndLoad(`
+CMC
+HLT
+`)
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+}
+
+func (s *Cpu4004Suite) TestCMA() {
+	s.AssembleAndLoad(`
+CMA
+HLT
+`)
+	s.cpu.Registers[REG_ACCUM] = 0x03
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x0C), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x0C")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 0
+	s.cpu.Registers[REG_ACCUM] = 0x0C
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x03), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x03")
+	s.Equal(byte(0), s.cpu.Registers[FLAG_CARRY], "Carry should be unset")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 1
+	s.cpu.Registers[REG_ACCUM] = 0x0C
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(0x03), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x03")
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
 }
 

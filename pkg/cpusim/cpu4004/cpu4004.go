@@ -439,7 +439,7 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int, updateFlags bool) er
 	reg := 0 // only ADD and SUB need the register
 	var val byte
 	if op == OP_ADD || op == OP_SUB {
-		reg = int(opCode & 0x07)
+		reg = int(opCode & 0x0F)
 		val, err = cpu.GetReg(reg)
 		if err != nil {
 			return err
@@ -471,10 +471,6 @@ func (cpu *CPU4004) ExecuteAccumulator(opCode byte, op int, updateFlags bool) er
 		work = work + 1
 	case OP_DEC:
 		work = work - 1
-	case OP_DAA:
-		if (acc&0x0F) > 9 || (carryBit != 0) {
-			work = work + 6
-		}
 	case OP_TCS:
 		if carryBit != 0 {
 			work = 10
