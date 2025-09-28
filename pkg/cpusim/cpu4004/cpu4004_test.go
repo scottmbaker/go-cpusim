@@ -12,6 +12,17 @@ import (
 	"testing"
 )
 
+/*
+ * Lacking coverage:
+ *   - JIN
+ *   - RDR (read rom port)
+ *   - WRR (write rom port)
+ *   - WMP (write to memory port)
+ *   - ADM (add from memory)
+ *   - SBM (subtract from memory)
+ *   - KBP
+ */
+
 const (
 	ASL   = "/usr/local/bin/asl"
 	P2BIN = "/usr/local/bin/p2bin"
@@ -855,6 +866,221 @@ HLT
 
 	s.Equal(byte(5), s.cpu.Registers[REG_ACCUM], "Accumulator should be 0x05")
 	s.Equal(byte(1), s.cpu.Registers[FLAG_CARRY], "Carry should be set")
+}
+
+func (s *Cpu4004Suite) TestJMSBBL() {
+	s.AssembleAndLoad(`
+LDM 01H
+XCH R1
+JMS SUB1
+XCH R7   ; contains 7 from the BBL from SUB1
+HLT
+
+SUB1:
+LDM 02H
+XCH R2
+JMS SUB2
+XCH R6	; contains 6 from the BBL from SUB2
+BBL 7
+
+SUB2:
+LDM 03
+XCH R3
+JMS SUB3
+XCH R5	; contains 5 from the BBL from SUB3
+BBL 6
+
+SUB3:
+LDM 04
+XCH R4
+BBL 5
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R1], "R1 should be 1")
+	s.Equal(byte(2), s.cpu.Registers[REG_R2], "R2 should be 2")
+	s.Equal(byte(3), s.cpu.Registers[REG_R3], "R3 should be 3")
+	s.Equal(byte(4), s.cpu.Registers[REG_R4], "R4 should be 4")
+	s.Equal(byte(5), s.cpu.Registers[REG_R5], "R5 should be 5")
+	s.Equal(byte(6), s.cpu.Registers[REG_R6], "R6 should be 6")
+	s.Equal(byte(7), s.cpu.Registers[REG_R7], "R7 should be 7")
+}
+
+func (s *Cpu4004Suite) TestJUN() {
+	s.AssembleAndLoad(`
+LDM 01H
+XCH R1
+JUN LAB1
+LDM 03H
+XCH R3	; should never be executed
+
+LAB1:
+LDM 02H
+XCH R2
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R1], "R1 should be 1")
+	s.Equal(byte(2), s.cpu.Registers[REG_R2], "R2 should be 2")
+	s.Equal(byte(0), s.cpu.Registers[REG_R3], "R3 should be 0")
+}
+
+func (s *Cpu4004Suite) TestNOP() {
+	s.AssembleAndLoad(`
+NOP
+NOP
+NOP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+}
+
+func (s *Cpu4004Suite) TestFIN() {
+	s.AssembleAndLoad(`
+FIM P0, DAT1
+FIN P1
+FIM P0, DAT0
+FIN P0
+HLT
+DAT1: data 12h
+DAT0: data 34h
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R2], "R2 should be 1")
+	s.Equal(byte(2), s.cpu.Registers[REG_R3], "R3 should be 2")
+	s.Equal(byte(3), s.cpu.Registers[REG_R0], "R0 should be 3")
+	s.Equal(byte(4), s.cpu.Registers[REG_R1], "R1 should be 4")
+}
+
+func (s *Cpu4004Suite) TestJCN_C() {
+	s.AssembleAndLoad(`
+LDM 1
+XCH R0
+JCN C, L1
+HLT
+
+L1:
+LDM 2
+XCH R0
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R0], "R0 should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
+}
+
+func (s *Cpu4004Suite) TestJCN_CN() {
+	s.AssembleAndLoad(`
+LDM 1
+XCH R0
+JCN CN, L1
+HLT
+
+L1:
+LDM 2
+XCH R0
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R0], "R0 should be 1")
+}
+
+func (s *Cpu4004Suite) TestJCN_Z() {
+	s.AssembleAndLoad(`
+JCN Z, L1
+HLT
+
+L1:
+LDM 2
+XCH R0
+HLT
+`)
+	s.cpu.Registers[REG_R0] = 1
+	s.cpu.Registers[REG_ACCUM] = 2
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R0], "R0 should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R0] = 1
+	s.cpu.Registers[REG_ACCUM] = 0
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
+}
+
+func (s *Cpu4004Suite) TestJCN_ZN() {
+	s.AssembleAndLoad(`
+JCN ZN, L1
+HLT
+
+L1:
+LDM 2
+XCH R0
+HLT
+`)
+	s.cpu.Registers[REG_R0] = 1
+	s.cpu.Registers[REG_ACCUM] = 0
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R0], "R0 should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R0] = 1
+	s.cpu.Registers[REG_ACCUM] = 2
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
+}
+
+func (s *Cpu4004Suite) TestISZ() {
+	s.AssembleAndLoad(`
+L1:
+INC R3
+ISZ R4, L1
+HLT
+`)
+	s.cpu.Registers[REG_R3] = 1
+	s.cpu.Registers[REG_R4] = 16 - 7
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(8), s.cpu.Registers[REG_R3], "R3 should be 8")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R3] = 1
+	s.cpu.Registers[REG_R4] = 16 - 16 // loop 16 times
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R3], "R3 should be 1")
 }
 
 func TestCpu4004Suite(t *testing.T) {
