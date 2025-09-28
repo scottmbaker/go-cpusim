@@ -5,11 +5,6 @@ import (
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
 
-/*
- * Known issues:
- * - JIN and FIN executed at the end of a page do not wrap correctly
- */
-
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
@@ -240,6 +235,8 @@ func (cpu *CPU4004) ExecuteFIN(destPair int) error {
 		return err
 	}
 	srcAddr := (cpu.PC & 0xFF00) | uint16(srcRelAddr)
+	// Note: This already handles the wrap issue when FIN was the instruction at 0xxxFF.
+	// Since PC was already incremented, it already points to the next page.
 	cpu.Sim.FilterMemoryKind(cpusim.KIND_ROM)
 	srcVal, err := cpu.Sim.ReadMemory(cpusim.Address(srcAddr))
 	if err != nil {
@@ -254,7 +251,10 @@ func (cpu *CPU4004) ExecuteJIN(destPair int) error {
 	if err != nil {
 		return err
 	}
-	cpu.PC = (cpu.PC & 0xFF00) | uint16(destRelAddr)
+	destAddr := (cpu.PC & 0xFF00) | uint16(destRelAddr)
+	// Note: This already handles the wrap issue when FIN was the instruction at 0xxxFF.
+	// Since PC was already incremented, it already points to the next page.
+	cpu.PC = destAddr
 	cpu.DebugJIN(destPair)
 	return nil
 }
@@ -364,7 +364,10 @@ func (cpu *CPU4004) ExecuteIncSkip(opCode byte) error {
 	}
 
 	if value != 0 {
-		cpu.PC = (cpu.PC & 0xFF00) | uint16(addrLow)
+		nextAddr := (cpu.PC & 0xFF00) | uint16(addrLow)
+		// Note: This already handles the wrap issue when FIN was the instruction at 0xxxFF.
+		// Since PC was already incremented, it already points to the next page.
+		cpu.PC = nextAddr
 	}
 
 	cpu.DebugIncSkip(reg, addrLow)
@@ -625,6 +628,8 @@ func (cpu *CPU4004) ExecuteJCN(opCode byte) error {
 		(invert && checkTest && test == 0)
 
 	if jump {
+		// Note: This already handles the wrap issue when JCN was the instruction at 0xxxFF.
+		// Since PC was already incremented, it already points to the next page.
 		cpu.PC = addr
 	}
 

@@ -14,7 +14,6 @@ import (
 
 /*
  * Lacking coverage:
- *   - JIN
  *   - RDR (read rom port)
  *   - WRR (write rom port)
  *   - WMP (write to memory port)
@@ -965,6 +964,46 @@ HLT		   ; 7
 	s.Equal(byte(3), s.cpu.Registers[REG_ACCUM], "ACCUM should be 3")
 }
 
+func (s *Cpu4004Suite) TestJIN_boundary() {
+	s.AssembleAndLoad(`
+JUN START
+org 0FFh
+START:
+JIN P1     ; FF
+HLT	   	   ; 100
+L1:
+LDM 1H     ; 101
+HLT		   ; 102
+L2:
+LDM 2H	   ; 103
+HLT		   ; 104
+L3:
+LDM 3H     ; 105
+HLT		   ; 106
+`)
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 1
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM], "ACCUM should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 3
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM], "ACCUM should be 2")
+
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 5
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(3), s.cpu.Registers[REG_ACCUM], "ACCUM should be 3")
+}
+
 func (s *Cpu4004Suite) TestNOP() {
 	s.AssembleAndLoad(`
 NOP
@@ -981,6 +1020,32 @@ func (s *Cpu4004Suite) TestFIN() {
 FIM P0, DAT1
 FIN P1
 FIM P0, DAT0
+FIN P0
+HLT
+DAT1: data 12h
+DAT0: data 34h
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R2], "R2 should be 1")
+	s.Equal(byte(2), s.cpu.Registers[REG_R3], "R3 should be 2")
+	s.Equal(byte(3), s.cpu.Registers[REG_R0], "R0 should be 3")
+	s.Equal(byte(4), s.cpu.Registers[REG_R1], "R1 should be 4")
+}
+
+func (s *Cpu4004Suite) TestFINBoundary() {
+	s.AssembleAndLoad(`
+JUN START
+org 04h
+WRONG1: data 56h
+WRONG0: data 78h
+org 0FDh
+START:
+FIM P0, 04H
+FIN P1
+org 0100h
+FIM P0, 05H
 FIN P0
 HLT
 DAT1: data 12h
@@ -1097,6 +1162,36 @@ HLT
 	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
 }
 
+func (s *Cpu4004Suite) TestJCN_C_Boundary() {
+	s.AssembleAndLoad(`
+org 00h
+JUN START
+
+org 0FCh
+START:
+LDM 1
+XCH R0
+data 012H, 01H ;  assembler refuses to assemble JCN C, 01h  ; FE, FF
+HLT		    ; 00
+
+L1:
+LDM 2		; 01
+XCH R0
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_R0], "R0 should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[FLAG_CARRY] = 1
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_R0], "R0 should be 2")
+}
+
 func (s *Cpu4004Suite) TestISZ() {
 	s.AssembleAndLoad(`
 L1:
@@ -1117,6 +1212,39 @@ HLT
 	err = s.cpu.Run()
 	s.NoError(err)
 
+	s.Equal(byte(1), s.cpu.Registers[REG_R3], "R3 should be 1")
+}
+
+func (s *Cpu4004Suite) TestISZ_boundary() {
+	s.AssembleAndLoad(`
+JUN START
+org 0FDh
+START:
+L1:
+INC R3		; FD
+ISZ R4, L1  ; FE, FF
+HLT		    ; 100
+org 1FDh	; since ISZ is at 0FEh, cpu will wrap to 01FD rather than 0FD
+INC R2
+JUN L1
+`)
+	s.cpu.Registers[REG_R2] = 7
+	s.cpu.Registers[REG_R3] = 1
+	s.cpu.Registers[REG_R4] = 16 - 7
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(13), s.cpu.Registers[REG_R2], "R2 should be 13")
+	s.Equal(byte(8), s.cpu.Registers[REG_R3], "R3 should be 8")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R2] = 7
+	s.cpu.Registers[REG_R3] = 1
+	s.cpu.Registers[REG_R4] = 16 - 16 // loop 16 times
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(6), s.cpu.Registers[REG_R2], "R2 should be 5")
 	s.Equal(byte(1), s.cpu.Registers[REG_R3], "R3 should be 1")
 }
 
