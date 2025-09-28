@@ -17,7 +17,7 @@ demo: build
 
 .PHONE: demo4004
 demo4004: build
-	./build/_output/cpusim4004 -f scott-uart.rom
+	./build/_output/cpusim4004 -f roms/scott-4004-uart.rom
 
 .PHONY: go-format
 go-format:
