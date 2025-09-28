@@ -92,6 +92,11 @@ func (cpu *CPU4004) DebugFIN(dest int) {
 	cpu.DebugInstr("FIN %s", destName)
 }
 
+func (cpu *CPU4004) DebugJIN(dest int) {
+	destName := cpu.GetPairName(dest)
+	cpu.DebugInstr("JIN %s", destName)
+}
+
 func (cpu *CPU4004) DebugMove(dest, src int) {
 	srcName := cpu.GetRegName(src)
 	_ = dest

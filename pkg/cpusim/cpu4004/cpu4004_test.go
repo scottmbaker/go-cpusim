@@ -928,6 +928,43 @@ HLT
 	s.Equal(byte(0), s.cpu.Registers[REG_R3], "R3 should be 0")
 }
 
+func (s *Cpu4004Suite) TestJIN() {
+	s.AssembleAndLoad(`
+JIN P1     ; 0
+HLT	   	   ; 1
+L1:
+LDM 1H     ; 2
+HLT		   ; 3
+L2:
+LDM 2H	   ; 4
+HLT		   ; 5
+L3:
+LDM 3H     ; 6
+HLT		   ; 7
+`)
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 2
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM], "ACCUM should be 1")
+
+	s.cpu.PC = 0 // Reset program counter to start
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 4
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM], "ACCUM should be 2")
+
+	s.cpu.Registers[REG_R2] = 0
+	s.cpu.Registers[REG_R3] = 6
+	err = s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(3), s.cpu.Registers[REG_ACCUM], "ACCUM should be 3")
+}
+
 func (s *Cpu4004Suite) TestNOP() {
 	s.AssembleAndLoad(`
 NOP

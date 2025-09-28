@@ -5,6 +5,11 @@ import (
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
 
+/*
+ * Known issues:
+ * - JIN and FIN executed at the end of a page do not wrap correctly
+ */
+
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
@@ -242,6 +247,16 @@ func (cpu *CPU4004) ExecuteFIN(destPair int) error {
 	}
 	cpu.DebugFIN(destPair)
 	return cpu.SetPair(destPair, srcVal)
+}
+
+func (cpu *CPU4004) ExecuteJIN(destPair int) error {
+	destRelAddr, err := cpu.GetPair(destPair)
+	if err != nil {
+		return err
+	}
+	cpu.PC = (cpu.PC & 0xFF00) | uint16(destRelAddr)
+	cpu.DebugJIN(destPair)
+	return nil
 }
 
 func (cpu *CPU4004) ExecuteLoad(opCode byte) error {
@@ -698,7 +713,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode&0xF1 == 0x31 {
 		// JIN
-		return &cpusim.ErrNotImplemented{Device: cpu, What: "JIN"}
+		return cpu.ExecuteJIN(int((opCode >> 1) & 0x07))
 	}
 
 	if opCode&0xF0 == 0x40 {
