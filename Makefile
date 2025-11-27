@@ -1,7 +1,7 @@
 all: build
 
 .PHONY: build
-build: build8008 build4004
+build: build8008 build4004 build4004-bigram
 
 .PHONY: build8008
 build8008:
@@ -10,6 +10,10 @@ build8008:
 .PHONY: build4004
 build4004:
 	go build -o build/_output/cpusim4004 ./cmd/cpusim4004
+
+.PHONY: build4004-bigram
+build4004-bigram:
+	go build -o build/_output/cpusim4004-bigram ./cmd/cpusim4004-bigram
 
 .PHONE: demo
 demo: build

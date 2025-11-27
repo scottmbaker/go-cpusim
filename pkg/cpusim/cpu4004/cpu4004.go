@@ -8,13 +8,13 @@ import (
 type CPU4004 struct {
 	Sim       *cpusim.CpuSim // Reference to the CPU simulation
 	Name      string         // Name of the CPU
-	Registers [20]byte       // 4-bit registers
-	Stack     [3]uint16
-	RC        byte
-	SP        byte
-	PC        uint16 // Program Counter
-	Halted    bool   // Flag to indicate if the CPU is halted
-	NewStyle  bool   // Flag to indicate if the new style debugging is used
+	Registers [20]byte       // 4-bit registers (16 for R0-R15, 1 accum, 1 dcl, 1 carry-fag, 1-test-flag)
+	Stack     [3]uint16      // three levels of stack
+	RC        byte           // Register Control, from SRC instruction
+	SP        byte           // Stack pointer
+	PC        uint16         // Program Counter
+	Halted    bool           // Flag to indicate if the CPU is halted
+	NewStyle  bool           // Flag to indicate if the new style debugging is used
 }
 
 const (

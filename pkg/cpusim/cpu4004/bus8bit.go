@@ -43,6 +43,24 @@ func (b *Bus8Bit) _readPort(address cpusim.Address) (byte, error) {
 	return 0, nil
 }
 
+func (b *Bus8Bit) _writeMem(address cpusim.Address, value byte) error {
+	for _, mem := range b.Memory {
+		if mem.HasAddress(address) {
+			return mem.Write(address, value)
+		}
+	}
+	return nil
+}
+
+func (b *Bus8Bit) _readMem(address cpusim.Address) (byte, error) {
+	for _, mem := range b.Memory {
+		if mem.HasAddress(address) {
+			return mem.Read(address)
+		}
+	}
+	return 0, nil
+}
+
 func (b *Bus8Bit) Read(address cpusim.Address) (byte, error) {
 	_ = address
 	return 0, &cpusim.ErrNotImplemented{Device: b}
@@ -63,6 +81,7 @@ func (b *Bus8Bit) ReadStatus(address cpusim.Address, statusAddr cpusim.Address) 
 		return 0, &cpusim.ErrInvalidAddress{Device: b, Address: statusAddr}
 	}
 	switch statusAddr {
+	// IO uses rd0/rd1
 	case 0:
 		b.LastReadValue, err = b._readPort(address)
 		if err != nil {
@@ -70,6 +89,15 @@ func (b *Bus8Bit) ReadStatus(address cpusim.Address, statusAddr cpusim.Address) 
 		}
 		return b.LastReadValue & 0x0F, nil
 	case 1:
+		return (b.LastReadValue >> 4) & 0x0F, nil
+	// memory uses rd2/rd3
+	case 2:
+		b.LastReadValue, err = b._readMem(address)
+		if err != nil {
+			return 0, err
+		}
+		return b.LastReadValue & 0x0F, nil
+	case 3:
 		return (b.LastReadValue >> 4) & 0x0F, nil
 	}
 	return 0, &cpusim.ErrNotImplemented{Device: b}
@@ -84,6 +112,7 @@ func (b *Bus8Bit) WriteStatus(address cpusim.Address, statusAddr cpusim.Address,
 		return &cpusim.ErrInvalidAddress{Device: b, Address: statusAddr}
 	}
 	switch statusAddr {
+	// IO uses wr0/wr1
 	case 0:
 		b.LastWriteValue = b.LastWriteValue&0xF0 | (value & 0x0F)
 		err = b._writePort(address, b.LastWriteValue)
@@ -92,6 +121,17 @@ func (b *Bus8Bit) WriteStatus(address cpusim.Address, statusAddr cpusim.Address,
 		}
 		return nil
 	case 1:
+		b.LastWriteValue = b.LastWriteValue&0x0F | ((value & 0x0F) << 4)
+		return nil
+	// memory uses wr2/wr3
+	case 2:
+		b.LastWriteValue = b.LastWriteValue&0xF0 | (value & 0x0F)
+		err = b._writeMem(address, b.LastWriteValue)
+		if err != nil {
+			return err
+		}
+		return nil
+	case 3:
 		b.LastWriteValue = b.LastWriteValue&0x0F | ((value & 0x0F) << 4)
 		return nil
 	}
