@@ -1,7 +1,7 @@
 package cpusim
 
 import (
-//"fmt"
+	"fmt"
 )
 
 // 74LS670 style memory mapper
@@ -35,7 +35,9 @@ func (m *Map670) HasAddress(address Address) bool {
 func (m *Map670) Write(address Address, value byte) error {
 	index := (address - m.MapperAddress) & m.SourceMask
 	m.Contents[index] = value
-	//fmt.Printf("MAP 670: Writing value %02X to address %04X\n", value, address)
+	if m.Sim.MemDebug {
+		fmt.Printf("MAP 670 %s: Writing value %02X to address %04X index %04X\n", m.Name, value, address, index)
+	}
 	return nil
 }
 
@@ -58,9 +60,9 @@ func (m *Map670) ReadStatus(address Address, statusAddr Address) (byte, error) {
 }
 
 func (m *Map670) Map(address Address) (Address, error) {
-	index := address >> m.SourceBit
+	addressIn := address
+	index := (address >> m.SourceBit) & m.SourceMask
 	value := m.Contents[index]
-	//fmt.Printf("<%04X:%02X>", address, value)
 	for i := 0; i < 8; i++ {
 		bitIsSet := (value & (1 << i)) != 0
 		if m.DestBit[i] >= 0 {
@@ -73,6 +75,10 @@ func (m *Map670) Map(address Address) (Address, error) {
 		if m.ConnectedEnableBit[i] != nil {
 			m.ConnectedEnableBit[i].Set(bitIsSet)
 		}
+	}
+	_ = addressIn
+	if m.Sim.MemDebug {
+		fmt.Printf("Mapper %s <%04X:%02X> index %02X --> %04X\n", m.Name, addressIn, value, index, address)
 	}
 	return address, nil
 }

@@ -10,6 +10,7 @@ type Bus8Bit struct {
 	Enabler        cpusim.EnablerInterface
 	Memory         []cpusim.MemoryInterface
 	Ports          []cpusim.MemoryInterface
+	Mappers        []cpusim.MapperInterface
 	LastReadValue  byte
 	LastWriteValue byte
 }
@@ -44,6 +45,16 @@ func (b *Bus8Bit) _readPort(address cpusim.Address) (byte, error) {
 }
 
 func (b *Bus8Bit) _writeMem(address cpusim.Address, value byte) error {
+	for _, mapper := range b.Mappers {
+		var err error
+		if !mapper.MatchMemory(b.Memory[0]) {
+			continue
+		}
+		address, err = mapper.Map(address)
+		if err != nil {
+			return err
+		}
+	}
 	for _, mem := range b.Memory {
 		if mem.HasAddress(address) {
 			return mem.Write(address, value)
@@ -53,6 +64,16 @@ func (b *Bus8Bit) _writeMem(address cpusim.Address, value byte) error {
 }
 
 func (b *Bus8Bit) _readMem(address cpusim.Address) (byte, error) {
+	for _, mapper := range b.Mappers {
+		var err error
+		if !mapper.MatchMemory(b.Memory[0]) {
+			continue
+		}
+		address, err = mapper.Map(address)
+		if err != nil {
+			return 0, err
+		}
+	}
 	for _, mem := range b.Memory {
 		if mem.HasAddress(address) {
 			return mem.Read(address)
@@ -144,6 +165,10 @@ func (b *Bus8Bit) AddMemory(memory cpusim.MemoryInterface) {
 
 func (b *Bus8Bit) AddPort(port cpusim.MemoryInterface) {
 	b.Ports = append(b.Ports, port)
+}
+
+func (b *Bus8Bit) AddMapper(mapper cpusim.MapperInterface) {
+	b.Mappers = append(b.Mappers, mapper)
 }
 
 func (b *Bus8Bit) GetKind() string {

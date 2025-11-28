@@ -41,16 +41,18 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	// Setup a mapper for the ROM. It will only filter KIND_ROM devices.
 	// We will attach it to the 4289's ROM port.
+
+	// Hi mapper for A14..A17. It uses addresses 0x04 - 0x07 (is this shift-lefted? why? shouldn't it be 0x40 to 0x70?).
+	mapper2 := cpusim.New74670(sim, "mapper2", 0x04, cpusim.A10, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, &cpusim.AlwaysEnabled)
+	mapper2.FilterMemoryKind(cpusim.KIND_ROM)
+	sim.AddMapper(mapper2)
+
+	// Lo mapper for A10..A13. Do this after the hi mapper, otherwise lo mapper changing A10 will break hi mapper
 	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled)
 	mapper.FilterMemoryKind(cpusim.KIND_ROM)
 	sim.AddMapper(mapper)
 
-	// Second mapper for A14..A17. It uses addresses 0x04 - 0x07 (is this shift-lefted? why? shouldn't it be 0x40 to 0x70?).
-	mapper2 := cpusim.New74670(sim, "mapper", 0x04, cpusim.A10, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, &cpusim.AlwaysEnabled)
-	mapper2.FilterMemoryKind(cpusim.KIND_ROM)
-	sim.AddMapper(mapper2)
-
-	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x3FFF, 12, true, &cpusim.TrueEnabler{})
+	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x3FFFF, 12, true, &cpusim.TrueEnabler{}) // 256 KB of ROM on the bigramboard
 	sim.AddMemory(rom)
 
 	ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x7F, 7, false, cpu.DCLEnabler(0))
@@ -62,6 +64,7 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	romPort := cpu4004.NewRomPort(sim, "romport_4289", &cpusim.TrueEnabler{})
 	romPort.AddPort(mapper)
+	romPort.AddPort(mapper2)
 	sim.AddPort(romPort)
 
 	// Create an 8251 UART
@@ -69,10 +72,21 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	b8b.AddPort(uart)
 
 	// Add the bigram
-	bigram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3FFFF, 16, true, &cpusim.AlwaysEnabled)
+	bigram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3FFFF, 16, false, &cpusim.AlwaysEnabled)
 	b8b.AddMemory(bigram)
 
-	XXX need to attach the mapper
+	// mappers for bigram
+	mapperBigRam0 := cpusim.New74173(sim, "bigram_mapper_A8", 0x08, cpusim.A8, cpusim.A9, cpusim.A10, cpusim.A11, &cpusim.AlwaysEnabled)
+	b8b.AddMapper(mapperBigRam0)
+	romPort.AddPort(mapperBigRam0)
+
+	mapperBigRam1 := cpusim.New74173(sim, "bigram_mapper_A12", 0x09, cpusim.A12, cpusim.A13, cpusim.A14, cpusim.A15, &cpusim.AlwaysEnabled)
+	b8b.AddMapper(mapperBigRam1)
+	romPort.AddPort(mapperBigRam1)
+
+	mapperBigRam2 := cpusim.New74173(sim, "bigram_mapper_A16", 0x0A, cpusim.A16, cpusim.A17, cpusim.A18, cpusim.A19, &cpusim.AlwaysEnabled)
+	b8b.AddMapper(mapperBigRam2)
+	romPort.AddPort(mapperBigRam2)
 
 	// Next we load the ROM, from a file on disk.
 	err := rom.Load(romFilename)

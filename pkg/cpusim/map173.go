@@ -54,7 +54,7 @@ func (m *Map173) ReadStatus(address Address, statusAddr Address) (byte, error) {
 
 func (m *Map173) Map(address Address) (Address, error) {
 	value := m.Contents
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 4; i++ {
 		bitIsSet := (value & (1 << i)) != 0
 		if m.DestBit[i] >= 0 {
 			bitMask := Address(1 << m.DestBit[i])

@@ -1,6 +1,7 @@
 package cpusim
 
 import (
+	"fmt"
 	"io"
 	"os"
 )
@@ -32,6 +33,9 @@ func (mem *Memory) HasAddress(address Address) bool {
 func (mem *Memory) Read(address Address) (byte, error) {
 	if !mem.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Device: mem, Address: address}
+	}
+	if mem.Sim.MemDebug {
+		fmt.Printf("Read %04X: %02X\n", address, mem.Contents[address-mem.StartAddress])
 	}
 	index := address - mem.StartAddress
 	return mem.Contents[index], nil

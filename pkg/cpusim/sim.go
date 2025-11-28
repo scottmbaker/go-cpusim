@@ -26,6 +26,8 @@ const (
 	A15 = 15
 	A16 = 16
 	A17 = 17
+	A18 = 18
+	A19 = 19
 
 	D0 = 0
 	D1 = 1
@@ -51,6 +53,7 @@ type CpuSim struct {
 	Mappers      []MapperInterface
 	CtrlC        bool
 	Debug        bool
+	MemDebug     bool
 	MemoryFilter string
 	PortFilter   string
 }
