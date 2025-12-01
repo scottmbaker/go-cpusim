@@ -71,6 +71,10 @@ func (sim *CpuSim) SetDebug(debug bool) {
 	sim.Debug = debug
 }
 
+func (sim *CpuSim) SetMemDebug(memDebug bool) {
+	sim.MemDebug = memDebug
+}
+
 func (sim *CpuSim) AddCPU(cpu CpuInterface) {
 	sim.CPU = append(sim.CPU, cpu)
 }

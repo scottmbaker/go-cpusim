@@ -11,7 +11,9 @@ import (
 	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu4004"
 	"github.com/spf13/cobra"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 )
 
 const (
@@ -23,7 +25,9 @@ const (
 
 var (
 	debug       bool
+	memDebug    bool
 	romFilename string
+	z3Filename  string
 	rootCmd     = &cobra.Command{
 		Use:   "cpusim4004",
 		Short: "scott's 4004 cpu simulator",
@@ -31,9 +35,12 @@ var (
 	}
 )
 
+var BigRamLink *cpusim.Memory
+
 func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim := cpusim.NewCPUSim()
 	sim.SetDebug(debug)
+	sim.SetMemDebug(memDebug)
 
 	// Create an 8008 CPU and attach it to the emulator
 	cpu := cpu4004.New4004(sim, "cpu")
@@ -75,6 +82,8 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	bigram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x3FFFF, 16, false, &cpusim.AlwaysEnabled)
 	b8b.AddMemory(bigram)
 
+	BigRamLink = bigram
+
 	// mappers for bigram
 	mapperBigRam0 := cpusim.New74173(sim, "bigram_mapper_A8", 0x08, cpusim.A8, cpusim.A9, cpusim.A10, cpusim.A11, &cpusim.AlwaysEnabled)
 	b8b.AddMapper(mapperBigRam0)
@@ -95,7 +104,36 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 		os.Exit(1)
 	}
 
+	if z3Filename != "" {
+		err := bigram.Load(z3Filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to load Z3 file '%s': %v\n", z3Filename, err)
+			os.Exit(1)
+		}
+		rom.Contents[81920] = 0xC0 // BBL 0 to disable loader
+	}
+
 	return sim, uart
+}
+
+func cleanup(sim *cpusim.CpuSim, uart *cpusim.UART) {
+	pch, _ := BigRamLink.Read(0x20000 + 0x11)
+	pclh, _ := BigRamLink.Read(0x20000 + 0x12)
+	pcll, _ := BigRamLink.Read(0x20000 + 0x13)
+
+	mph, _ := BigRamLink.Read(0x20000 + 0x15)
+	mplh, _ := BigRamLink.Read(0x20000 + 0x16)
+	mpll, _ := BigRamLink.Read(0x20000 + 0x17)
+
+	abbvh, _ := BigRamLink.Read(0x20000 + 0x18)
+	abbvl, _ := BigRamLink.Read(0x20000 + 0x19)
+
+	fmt.Printf("%04X: ", sim.CPU[0].(*cpu4004.CPU4004).PC)
+	fmt.Printf("%s\n", sim.CPU[0].String())
+	fmt.Printf("PC=%02X%02X%02X MP=%02X%02X%02X ABBV=%02X%02X\n", pch, pclh, pcll, mph, mplh, mpll, abbvh, abbvl)
+
+	// Stop raw mode terminal
+	uart.RestoreTerminal()
 }
 
 func mainCommand(cmd *cobra.Command, args []string) {
@@ -115,16 +153,27 @@ func mainCommand(cmd *cobra.Command, args []string) {
 	//. Start the UART. It will switch the ternminal to raw input and start processing keystrokes.
 	uart.Start(&wg)
 
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		// Block until a signal is received.
+		<-signalChan
+		fmt.Println("Received interrupt signal.")
+		cleanup(sim, uart) // Call the desired function
+		os.Exit(0)         // Exit gracefully after cleanup
+	}()
+
 	// Wait for all goroutines to complete
 	wg.Wait()
 
-	// Stop raw mode terminal
-	uart.RestoreTerminal()
+	cleanup(sim, uart)
 }
 
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
+	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
+	rootCmd.PersistentFlags().StringVarP(&z3Filename, "z3-file", "z", "", "z3 filename")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()

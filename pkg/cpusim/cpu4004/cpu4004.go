@@ -908,9 +908,6 @@ func (cpu *CPU4004) Run() error {
 func (cpu *CPU4004) String() string {
 	s := ""
 	for i := 0; i < len(cpu.Registers); i++ {
-		if i == 7 {
-			continue
-		}
 		s = s + fmt.Sprintf("%s=%X", cpu.GetRegName(i), cpu.Registers[i])
 		if i < len(cpu.Registers)-1 {
 			s += " "
