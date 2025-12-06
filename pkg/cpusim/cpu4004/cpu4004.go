@@ -15,6 +15,7 @@ type CPU4004 struct {
 	PC        uint16         // Program Counter
 	Halted    bool           // Flag to indicate if the CPU is halted
 	NewStyle  bool           // Flag to indicate if the new style debugging is used
+	DebugLine func(*cpusim.CpuSim)
 }
 
 const (
@@ -85,6 +86,10 @@ func toBit(value bool) byte {
 		return 1
 	}
 	return 0
+}
+
+func (cpu *CPU4004) SetDebugLine(debugLine func(*cpusim.CpuSim)) {
+	cpu.DebugLine = debugLine
 }
 
 func (cpu *CPU4004) GetName() string {
@@ -689,6 +694,26 @@ func (cpu *CPU4004) Execute() error {
 	if opCode == 0x01 {
 		cpu.DebugInstr("HALT-4040")
 		cpu.Halted = true
+		return nil
+	}
+
+	if opCode == 0x02 { // 4004 instruction BBS repurposed for debugging
+		cpu.DebugInstr("DEBUG")
+		if cpu.DebugLine != nil {
+			cpu.DebugLine(cpu.Sim)
+		}
+		return nil
+	}
+
+	if opCode == 0x03 { // 4004 instruction BBS repurposed for debugging
+		cpu.DebugInstr("TRACEON")
+		cpu.Sim.Debug = true
+		return nil
+	}
+
+	if opCode == 0x04 { // 4004 instruction BBS repurposed for debugging
+		cpu.DebugInstr("TRACEOFF")
+		cpu.Sim.Debug = false
 		return nil
 	}
 

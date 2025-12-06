@@ -26,6 +26,7 @@ const (
 var (
 	debug       bool
 	memDebug    bool
+	startAddr   int
 	romFilename string
 	z3Filename  string
 	rootCmd     = &cobra.Command{
@@ -44,7 +45,12 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	// Create an 8008 CPU and attach it to the emulator
 	cpu := cpu4004.New4004(sim, "cpu")
+	cpu.SetDebugLine(debugLine)
 	sim.AddCPU(cpu)
+
+	if startAddr != 0 {
+		cpu.PC = uint16(startAddr)
+	}
 
 	// Setup a mapper for the ROM. It will only filter KIND_ROM devices.
 	// We will attach it to the 4289's ROM port.
@@ -116,7 +122,7 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	return sim, uart
 }
 
-func cleanup(sim *cpusim.CpuSim, uart *cpusim.UART) {
+func debugLine(sim *cpusim.CpuSim) {
 	pch, _ := BigRamLink.Read(0x20000 + 0x11)
 	pclh, _ := BigRamLink.Read(0x20000 + 0x12)
 	pcll, _ := BigRamLink.Read(0x20000 + 0x13)
@@ -128,9 +134,15 @@ func cleanup(sim *cpusim.CpuSim, uart *cpusim.UART) {
 	abbvh, _ := BigRamLink.Read(0x20000 + 0x18)
 	abbvl, _ := BigRamLink.Read(0x20000 + 0x19)
 
-	fmt.Printf("%04X: ", sim.CPU[0].(*cpu4004.CPU4004).PC)
-	fmt.Printf("%s\n", sim.CPU[0].String())
-	fmt.Printf("PC=%02X%02X%02X MP=%02X%02X%02X ABBV=%02X%02X\n", pch, pclh, pcll, mph, mplh, mpll, abbvh, abbvl)
+	fmt.Printf("\n")
+	fmt.Printf("> %04X: ", sim.CPU[0].(*cpu4004.CPU4004).PC)
+	fmt.Printf(" %s\n", sim.CPU[0].String())
+	fmt.Printf("> PC=%02X%02X%02X MP=%02X%02X%02X ABBV=%02X%02X\n", pch, pclh, pcll, mph, mplh, mpll, abbvh, abbvl)
+}
+
+func cleanup(sim *cpusim.CpuSim, uart *cpusim.UART) {
+	fmt.Printf(">>>>> Terminated <<<<<\n")
+	debugLine(sim)
 
 	// Stop raw mode terminal
 	uart.RestoreTerminal()
@@ -172,6 +184,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
 	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
+	rootCmd.PersistentFlags().IntVarP(&startAddr, "startAddr", "s", 0, "start address")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().StringVarP(&z3Filename, "z3-file", "z", "", "z3 filename")
 	rootCmd.Run = mainCommand
