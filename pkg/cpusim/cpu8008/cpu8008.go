@@ -468,6 +468,10 @@ func (cpu *CPU8008) ExecutePort(port byte) error {
 	return nil
 }
 
+func (cpu *CPU8008) Halt() {
+	cpu.Halted = true
+}
+
 func (cpu *CPU8008) Execute() error {
 	if cpu.Sim.Debug {
 		fmt.Printf("%04X: ", cpu.PC)

@@ -18,6 +18,20 @@ type UART struct {
 	Keybuffer           []byte // Simulated key buffer for UART
 	RawMode             bool   // Whether to run in raw mode
 	lastCharOut         byte   // Last key pressed, for debugging or other purposes
+	exitEof             bool
+}
+
+func (u *UART) LoadInputFile(filename string) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	u.Keybuffer = append(u.Keybuffer, data...)
+	return nil
+}
+
+func (u *UART) SetExitOnEof(exitEof bool) {
+	u.exitEof = exitEof
 }
 
 func (u *UART) GetName() string {
@@ -35,6 +49,10 @@ func (u *UART) HasAddress(address Address) bool {
 func (u *UART) Read(address Address) (byte, error) {
 	if !u.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
+	}
+
+	if (u.exitEof) && (len(u.Keybuffer) == 0) {
+		u.Sim.Halt()
 	}
 
 	if address == u.DataReadAddress {

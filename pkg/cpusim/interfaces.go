@@ -5,6 +5,7 @@ type CpuInterface interface {
 	GetReg(register int) (byte, error)
 	String() string
 	Run() error
+	Halt()
 }
 
 type MemoryInterface interface {

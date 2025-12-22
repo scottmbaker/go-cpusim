@@ -6,16 +6,20 @@ import (
 )
 
 type CPU4004 struct {
-	Sim       *cpusim.CpuSim // Reference to the CPU simulation
-	Name      string         // Name of the CPU
-	Registers [20]byte       // 4-bit registers (16 for R0-R15, 1 accum, 1 dcl, 1 carry-fag, 1-test-flag)
-	Stack     [3]uint16      // three levels of stack
-	RC        byte           // Register Control, from SRC instruction
-	SP        byte           // Stack pointer
-	PC        uint16         // Program Counter
-	Halted    bool           // Flag to indicate if the CPU is halted
-	NewStyle  bool           // Flag to indicate if the new style debugging is used
-	DebugLine func(*cpusim.CpuSim)
+	Sim        *cpusim.CpuSim // Reference to the CPU simulation
+	Name       string         // Name of the CPU
+	Registers  [20]byte       // 4-bit registers (16 for R0-R15, 1 accum, 1 dcl, 1 carry-fag, 1-test-flag)
+	Stack      [3]uint16      // three levels of stack
+	RC         byte           // Register Control, from SRC instruction
+	SP         byte           // Stack pointer
+	PC         uint16         // Program Counter
+	Halted     bool           // Flag to indicate if the CPU is halted
+	NewStyle   bool           // Flag to indicate if the new style debugging is used
+	Cycles     int            // Cycle counter
+	DebugLine  func(*cpusim.CpuSim)
+	DebugTwo   func(*cpusim.CpuSim)
+	DebugThree func(*cpusim.CpuSim)
+	DebugFour  func(*cpusim.CpuSim)
 }
 
 const (
@@ -78,6 +82,7 @@ func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 		PC:        0, // Program Counter
 		Sim:       sim,
 		NewStyle:  true, // Use new style for debugging
+		Cycles:    0,
 	}
 }
 
@@ -90,6 +95,18 @@ func toBit(value bool) byte {
 
 func (cpu *CPU4004) SetDebugLine(debugLine func(*cpusim.CpuSim)) {
 	cpu.DebugLine = debugLine
+}
+
+func (cpu *CPU4004) SetDebugTwo(debugLine func(*cpusim.CpuSim)) {
+	cpu.DebugTwo = debugLine
+}
+
+func (cpu *CPU4004) SetDebugThree(debugLine func(*cpusim.CpuSim)) {
+	cpu.DebugThree = debugLine
+}
+
+func (cpu *CPU4004) SetDebugFour(debugLine func(*cpusim.CpuSim)) {
+	cpu.DebugFour = debugLine
 }
 
 func (cpu *CPU4004) GetName() string {
@@ -676,6 +693,8 @@ func (cpu *CPU4004) Execute() error {
 		fmt.Printf("%04X: ", cpu.PC)
 	}
 
+	cpu.Cycles += 1
+
 	opCode, err := cpu.FetchOpcode()
 	if err != nil {
 		return err
@@ -697,7 +716,7 @@ func (cpu *CPU4004) Execute() error {
 		return nil
 	}
 
-	if opCode == 0x02 { // 4004 instruction BBS repurposed for debugging
+	if cpu.DebugLine != nil && (opCode == 0x02) { // 4004 instruction BBS repurposed for debugging
 		cpu.DebugInstr("DEBUG")
 		if cpu.DebugLine != nil {
 			cpu.DebugLine(cpu.Sim)
@@ -705,20 +724,44 @@ func (cpu *CPU4004) Execute() error {
 		return nil
 	}
 
-	if opCode == 0x03 { // 4004 instruction BBS repurposed for debugging
+	if cpu.DebugLine != nil && (opCode == 0x03) { // 4004 instruction LCR repurposed for debugging
 		cpu.DebugInstr("TRACEON")
 		cpu.Sim.Debug = true
 		return nil
 	}
 
-	if opCode == 0x04 { // 4004 instruction BBS repurposed for debugging
+	if cpu.DebugLine != nil && (opCode == 0x04) { // 4004 instruction OR4 repurposed for debugging
 		cpu.DebugInstr("TRACEOFF")
 		cpu.Sim.Debug = false
 		return nil
 	}
 
+	if cpu.DebugTwo != nil && (opCode == 0x05) { // 4004 instruction OR5 repurposed for debugging
+		cpu.DebugInstr("DEBUG2")
+		if cpu.DebugTwo != nil {
+			cpu.DebugTwo(cpu.Sim)
+		}
+		return nil
+	}
+
+	if cpu.DebugThree != nil && (opCode == 0x06) { // 4004 instruction AN6 repurposed for debugging
+		cpu.DebugInstr("DEBUG3")
+		if cpu.DebugThree != nil {
+			cpu.DebugThree(cpu.Sim)
+		}
+		return nil
+	}
+
 	if opCode == 0x07 {
 		cpu.DebugInstr("AN7-4040-NOP")
+		return nil
+	}
+
+	if cpu.DebugFour != nil && (opCode == 0x08) { // 4004 instruction DB0 repurposed for debugging
+		cpu.DebugInstr("DEBUG4")
+		if cpu.DebugFour != nil {
+			cpu.DebugFour(cpu.Sim)
+		}
 		return nil
 	}
 
@@ -910,6 +953,10 @@ func (cpu *CPU4004) Execute() error {
 	}
 
 	return &cpusim.ErrInvalidOpcode{Device: cpu, Opcode: opCode}
+}
+
+func (cpu *CPU4004) Halt() {
+	cpu.Halted = true
 }
 
 func (cpu *CPU4004) Run() error {

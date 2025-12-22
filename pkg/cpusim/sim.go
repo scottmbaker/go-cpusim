@@ -91,6 +91,12 @@ func (sim *CpuSim) AddMapper(mapper MapperInterface) {
 	sim.Mappers = append(sim.Mappers, mapper)
 }
 
+func (sim *CpuSim) Halt() {
+	for _, cpu := range sim.CPU {
+		cpu.Halt()
+	}
+}
+
 func (sim *CpuSim) Start(wg *sync.WaitGroup) {
 	for _, cpu := range sim.CPU {
 		wg.Add(1)
