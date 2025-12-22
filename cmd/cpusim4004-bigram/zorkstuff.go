@@ -1,9 +1,11 @@
 package main
 
-// go-cpusim
-// Scott Baker
+// Zorkinator support
 //
-// A 4004 CPU similator written in Go.
+// The whole reason for the "bigram" variant of the 4004 was to support playing Zork on the 4004.
+// While implementing the Z-Machine, I added various debugging and profiling hooks to help me
+// develop it. I've tried to confine those functions to this file, to make main.go a little
+// less confusing.
 
 import (
 	"fmt"
