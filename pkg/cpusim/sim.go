@@ -44,6 +44,7 @@ const (
 	KIND_UART    = "UART"
 	KIND_INPORT  = "INPORT"
 	KIND_ROMPORT = "ROMPORT"
+	KIND_RAMPORT = "RAMPORT"
 )
 
 type CpuSim struct {

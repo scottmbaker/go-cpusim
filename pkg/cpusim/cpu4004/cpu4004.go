@@ -71,7 +71,7 @@ const (
 	OP_SBM = 12
 )
 
-var KBPTable = [16]int{0, 1, 2, 3, 4, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15}
+var KBPTable = [16]int{0, 1, 2, 15, 3, 15, 15, 15, 4, 15, 15, 15, 15, 15, 15, 15}
 
 func New4004(sim *cpusim.CpuSim, name string) *CPU4004 {
 	return &CPU4004{
@@ -423,8 +423,8 @@ func (cpu *CPU4004) ExecuteWrite(opCode byte) error {
 		cpu.Sim.FilterMemoryKind(cpusim.KIND_RAM)
 		return cpu.Sim.WriteMemory(cpusim.Address(cpu.RC), acc)
 	case 1:
-		// ramport
-		return nil
+		cpu.Sim.FilterPortKind(cpusim.KIND_RAMPORT) // ramport was added by Google Antigravity
+		return cpu.Sim.WritePort(cpusim.Address(cpu.RC), acc)
 	case 2:
 		cpu.Sim.FilterPortKind(cpusim.KIND_ROMPORT)
 		return cpu.Sim.WritePort(cpusim.Address(cpu.RC), acc)

@@ -19,7 +19,6 @@ import (
  *   - WMP (write to memory port)
  *   - ADM (add from memory)
  *   - SBM (subtract from memory)
- *   - KBP
  */
 
 const (
@@ -91,6 +90,151 @@ func getTestName() string {
 	name := runtime.FuncForPC(counter).Name()
 	parts := strings.Split(name, ".")
 	return parts[len(parts)-1]
+}
+
+func (s *Cpu4004Suite) TestKBP0() {
+	// 0000 -> 0000
+	s.AssembleAndLoad(`
+LDM 0
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(0), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP1() {
+	// 0001 -> 0001
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 1
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(1), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP2() {
+	// 0010 -> 0010
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 2
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(2), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP4() {
+	// 0100 -> 0011
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 4
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(3), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP8() {
+	// 1000 -> 0100
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 8
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(4), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP3() {
+	// 0011 -> 1111 (two bits set)
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 3
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(15), s.cpu.Registers[REG_ACCUM])
+}
+
+func (s *Cpu4004Suite) TestKBP15() {
+	// 1111 -> 1111 (four bits set)
+	s.cpu.PC = 0
+	s.AssembleAndLoad(`
+LDM 15
+KBP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+	s.Equal(byte(15), s.cpu.Registers[REG_ACCUM])
+}
+
+type TestRamPort struct {
+	Sim *cpusim.CpuSim
+	out [16]byte
+}
+
+func (p *TestRamPort) HasAddress(address cpusim.Address) bool {
+	return true
+}
+
+func (p *TestRamPort) Read(address cpusim.Address) (byte, error) {
+	return 0, nil
+}
+
+func (p *TestRamPort) Write(address cpusim.Address, value byte) error {
+	if address >= 16 {
+		return &cpusim.ErrInvalidAddress{Address: address}
+	}
+	p.out[address] = value
+	return nil
+}
+
+func (p *TestRamPort) ReadStatus(address cpusim.Address, statusAddr cpusim.Address) (byte, error) {
+	return 0, nil
+}
+
+func (p *TestRamPort) WriteStatus(address cpusim.Address, statusAddr cpusim.Address, value byte) error {
+	return nil
+}
+
+func (p *TestRamPort) GetKind() string {
+	return cpusim.KIND_RAMPORT
+}
+
+func (p *TestRamPort) GetName() string {
+	return "testramport"
+}
+
+func (s *Cpu4004Suite) TestWMP() {
+	// Attach a RAM port
+	ramPort := &TestRamPort{Sim: s.sim}
+	s.sim.AddPort(ramPort)
+
+	s.AssembleAndLoad(`
+FIM P0, 05H
+SRC P0
+LDM 9
+WMP
+HLT
+`)
+	err := s.cpu.Run()
+	s.NoError(err)
+
+	s.Equal(byte(9), ramPort.out[5])
 }
 
 func (s *Cpu4004Suite) SetupTest() {
