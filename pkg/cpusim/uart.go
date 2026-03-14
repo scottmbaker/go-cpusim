@@ -2,7 +2,6 @@ package cpusim
 
 import (
 	"fmt"
-	"github.com/scottmbaker/gocpusim/pkg/rawmode"
 	"os"
 	"sync"
 )
@@ -12,15 +11,15 @@ import (
 // Data and control/status use separate configurable addresses.
 type UART struct {
 	Sim                 *CpuSim
+	Serial              SerialIO
 	Name                string
 	DataReadAddress     Address
 	DataWriteAddress    Address
 	ControlReadAddress  Address
 	ControlWriteAddress Address
 	Enabler             EnablerInterface
-	Keybuffer           []byte // Simulated key buffer for UART
-	RawMode             bool   // Whether to run in raw mode
-	lastCharOut         byte   // Last key pressed, for debugging or other purposes
+	Keybuffer           []byte
+	lastCharOut         byte
 	exitEof             bool
 }
 
@@ -54,7 +53,7 @@ func (u *UART) Read(address Address) (byte, error) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
 
-	if (u.exitEof) && (len(u.Keybuffer) == 0) {
+	if u.exitEof && len(u.Keybuffer) == 0 {
 		u.Sim.Halt()
 	}
 
@@ -74,7 +73,7 @@ func (u *UART) Read(address Address) (byte, error) {
 		if len(u.Keybuffer) > 0 {
 			value |= 0x02 // RXReady is true if there are bytes in the buffer
 		}
-		return byte(value & 0xFF), nil
+		return byte(value), nil
 	}
 
 	return 0, nil
@@ -86,12 +85,9 @@ func (u *UART) Write(address Address, value byte) error {
 	}
 
 	if address == u.DataWriteAddress {
-		//if value == 0x0A && u.lastCharOut != 0x0D {
-		//	os.Stdout.Write([]byte{0x0D}) // Add CR before LF
-		//}
-		_, err := os.Stdout.Write([]byte{value})
+		err := u.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to stdout: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v", err)
 		}
 		u.lastCharOut = value
 	}
@@ -114,55 +110,44 @@ func (u *UART) ReadStatus(address Address, statusAddr Address) (byte, error) {
 
 func (u *UART) Run() error {
 	for {
-		input := make([]byte, 1)
-		_, err := os.Stdin.Read(input)
+		b, err := u.Serial.ReadByte()
 		if err != nil {
 			return err
 		}
-		if input[0] == 0x03 {
-			u.Sim.CtrlC = true // Handle Ctrl-C
+		if b == 0x03 {
+			u.Sim.CtrlC = true
 		}
-		u.Keybuffer = append(u.Keybuffer, input[0])
+		u.Keybuffer = append(u.Keybuffer, b)
 	}
 }
 
 func (u *UART) Start(wg *sync.WaitGroup) {
-	//wg.Add(1)   do not add ourselves to wg. We want this to die when the cpus die.
-	go func(c *UART) {
-		//defer wg.Done()
-		if u.RawMode {
-			err := rawmode.EnableRawMode() // Use the raw mode enabling function
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
-			}
-		}
+	go func() {
+		u.Serial.Start()
 		err := u.Run()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "UART error: %v\n", err)
 		}
-	}(u)
+	}()
 }
 
 func (u *UART) RestoreTerminal() {
-	err := rawmode.DisableRawMode() // Use the raw mode disabling function
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
-	}
+	u.Serial.RestoreTerminal()
 }
 
 func (u *UART) GetKind() string {
 	return KIND_UART
 }
 
-func NewUART(sim *CpuSim, name string, dataReadAddress, dataWriteAddress, controlReadAddress, controlWriteAddress Address, enabler EnablerInterface) *UART {
+func NewUART(sim *CpuSim, serial SerialIO, name string, dataReadAddress, dataWriteAddress, controlReadAddress, controlWriteAddress Address, enabler EnablerInterface) *UART {
 	return &UART{
 		Sim:                 sim,
+		Serial:              serial,
 		Name:                name,
 		DataReadAddress:     dataReadAddress,
 		DataWriteAddress:    dataWriteAddress,
 		ControlReadAddress:  controlReadAddress,
 		ControlWriteAddress: controlWriteAddress,
 		Enabler:             enabler,
-		RawMode:             true,
 	}
 }

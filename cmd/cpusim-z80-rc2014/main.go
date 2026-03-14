@@ -78,13 +78,14 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 	sim.AddMemory(rom)
 
 	// UART on I/O ports
+	serialIO := cpusim.NewStdioSerial(true)
 	var uart cpusim.UartInterface
 	if serial == "acia" {
-		acia := cpusim.NewACIA(sim, "uart", ACIA_DATA, ACIA_CONTROL, &cpusim.AlwaysEnabled)
+		acia := cpusim.NewACIA(sim, serialIO, "uart", ACIA_DATA, ACIA_CONTROL, &cpusim.AlwaysEnabled)
 		sim.AddPort(acia)
 		uart = acia
 	} else if serial == "sio" {
-		sio := cpusim.NewSIO(sim, "uart", SIO_DATA_A, SIO_DATA_B, SIO_CTRL_A, SIO_CTRL_B, &cpusim.AlwaysEnabled)
+		sio := cpusim.NewSIO(sim, serialIO, "uart", SIO_DATA_A, SIO_DATA_B, SIO_CTRL_A, SIO_CTRL_B, &cpusim.AlwaysEnabled)
 		sim.AddPort(sio)
 		uart = sio
 	} else {

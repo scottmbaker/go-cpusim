@@ -92,7 +92,8 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddPort(romPort)
 
 	// Create an 8251 UART
-	uart := cpusim.NewUART(sim, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
+	serialIO := cpusim.NewStdioSerial(true)
+	uart := cpusim.NewUART(sim, serialIO, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
 	b8b.AddPort(uart)
 
 	// Add the bigram

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-
-	"github.com/scottmbaker/gocpusim/pkg/rawmode"
 )
 
 // ACIA implements a Motorola MC6850 Asynchronous Communications Interface Adapter.
@@ -31,12 +29,12 @@ import (
 //   - Bit 7: Receive Interrupt Enable
 type ACIA struct {
 	Sim            *CpuSim
+	Serial         SerialIO
 	Name           string
 	DataAddress    Address
 	ControlAddress Address
 	Enabler        EnablerInterface
 	Keybuffer      []byte
-	RawMode        bool
 	lastCharOut    byte
 	exitEof        bool
 	controlReg     byte
@@ -107,9 +105,9 @@ func (a *ACIA) Write(address Address, value byte) error {
 	}
 
 	if address == a.DataAddress {
-		_, err := os.Stdout.Write([]byte{value})
+		err := a.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to stdout: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v", err)
 		}
 		a.lastCharOut = value
 	}
@@ -132,26 +130,20 @@ func (a *ACIA) ReadStatus(address Address, statusAddr Address) (byte, error) {
 
 func (a *ACIA) Run() error {
 	for {
-		input := make([]byte, 1)
-		_, err := os.Stdin.Read(input)
+		b, err := a.Serial.ReadByte()
 		if err != nil {
 			return err
 		}
-		if input[0] == 0x03 {
+		if b == 0x03 {
 			a.Sim.CtrlC = true
 		}
-		a.Keybuffer = append(a.Keybuffer, input[0])
+		a.Keybuffer = append(a.Keybuffer, b)
 	}
 }
 
 func (a *ACIA) Start(wg *sync.WaitGroup) {
 	go func() {
-		if a.RawMode {
-			err := rawmode.EnableRawMode()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
-			}
-		}
+		a.Serial.Start()
 		err := a.Run()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ACIA error: %v\n", err)
@@ -160,23 +152,20 @@ func (a *ACIA) Start(wg *sync.WaitGroup) {
 }
 
 func (a *ACIA) RestoreTerminal() {
-	err := rawmode.DisableRawMode()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
-	}
+	a.Serial.RestoreTerminal()
 }
 
 func (a *ACIA) GetKind() string {
 	return KIND_ACIA
 }
 
-func NewACIA(sim *CpuSim, name string, dataAddress, controlAddress Address, enabler EnablerInterface) *ACIA {
+func NewACIA(sim *CpuSim, serial SerialIO, name string, dataAddress, controlAddress Address, enabler EnablerInterface) *ACIA {
 	return &ACIA{
 		Sim:            sim,
+		Serial:         serial,
 		Name:           name,
 		DataAddress:    dataAddress,
 		ControlAddress: controlAddress,
 		Enabler:        enabler,
-		RawMode:        true,
 	}
 }
