@@ -100,7 +100,8 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddMemory(rom)
 
 	// Create an 8251 UART
-	uart := cpusim.NewUART(sim, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
+	serialIO := cpusim.NewStdioSerial(true)
+	uart := cpusim.NewUART(sim, serialIO, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
 	sim.AddPort(uart)
 
 	// There's a bug in the monitor that will abort the memory dump command if it reads a low bit 0 from port 0.

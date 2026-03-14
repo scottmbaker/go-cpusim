@@ -28,3 +28,11 @@ type UartInterface interface {
 	Start(wg *sync.WaitGroup)
 	RestoreTerminal()
 }
+
+// SerialIO abstracts the byte-level I/O transport for serial devices.
+type SerialIO interface {
+	ReadByte() (byte, error)
+	WriteByte(b byte) error
+	Start()
+	RestoreTerminal()
+}

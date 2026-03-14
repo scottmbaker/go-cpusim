@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-
-	"github.com/scottmbaker/gocpusim/pkg/rawmode"
 )
 
 // SIO implements a Zilog Z80-SIO/2 Serial Input/Output controller.
@@ -41,6 +39,7 @@ import (
 // secondary channel that accepts output but has no input source.
 type SIO struct {
 	Sim              *CpuSim
+	Serial           SerialIO
 	Name             string
 	DataAddrA        Address
 	DataAddrB        Address
@@ -48,7 +47,7 @@ type SIO struct {
 	ControlAddrB     Address
 	Enabler          EnablerInterface
 	Keybuffer        []byte // Input buffer for channel A
-	RawMode          bool
+	mu               sync.Mutex
 	lastCharOut      byte
 	exitEof          bool
 	chanA            sioChannel
@@ -91,6 +90,9 @@ func (s *SIO) Read(address Address) (byte, error) {
 	if !s.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.exitEof && len(s.Keybuffer) == 0 {
 		s.Sim.Halt()
@@ -157,9 +159,9 @@ func (s *SIO) Write(address Address, value byte) error {
 
 	// Data port writes
 	if address == s.DataAddrA || address == s.DataAddrB {
-		_, err := os.Stdout.Write([]byte{value})
+		err := s.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to stdout: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		s.lastCharOut = value
 		return nil
@@ -226,26 +228,22 @@ func (s *SIO) ReadStatus(address Address, statusAddr Address) (byte, error) {
 
 func (s *SIO) Run() error {
 	for {
-		input := make([]byte, 1)
-		_, err := os.Stdin.Read(input)
+		b, err := s.Serial.ReadByte()
 		if err != nil {
 			return err
 		}
-		if input[0] == 0x03 {
+		if b == 0x03 {
 			s.Sim.CtrlC = true
 		}
-		s.Keybuffer = append(s.Keybuffer, input[0])
+		s.mu.Lock()
+		s.Keybuffer = append(s.Keybuffer, b)
+		s.mu.Unlock()
 	}
 }
 
 func (s *SIO) Start(wg *sync.WaitGroup) {
 	go func() {
-		if s.RawMode {
-			err := rawmode.EnableRawMode()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
-			}
-		}
+		s.Serial.Start()
 		err := s.Run()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "SIO error: %v\n", err)
@@ -254,25 +252,22 @@ func (s *SIO) Start(wg *sync.WaitGroup) {
 }
 
 func (s *SIO) RestoreTerminal() {
-	err := rawmode.DisableRawMode()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
-	}
+	s.Serial.RestoreTerminal()
 }
 
 func (s *SIO) GetKind() string {
 	return KIND_SIO
 }
 
-func NewSIO(sim *CpuSim, name string, dataAddrA, dataAddrB, controlAddrA, controlAddrB Address, enabler EnablerInterface) *SIO {
+func NewSIO(sim *CpuSim, serial SerialIO, name string, dataAddrA, dataAddrB, controlAddrA, controlAddrB Address, enabler EnablerInterface) *SIO {
 	return &SIO{
 		Sim:          sim,
+		Serial:       serial,
 		Name:         name,
 		DataAddrA:    dataAddrA,
 		DataAddrB:    dataAddrB,
 		ControlAddrA: controlAddrA,
 		ControlAddrB: controlAddrB,
 		Enabler:      enabler,
-		RawMode:      true,
 	}
 }
