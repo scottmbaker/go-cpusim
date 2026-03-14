@@ -1,4 +1,4 @@
-# An 8008, 4004, and 4040 CPU Emulator in Go
+# An 8008, 4004, 4040, and Z80 CPU Emulator in Go
 
 Scott Baker, https://medium.com/@smbaker
 
@@ -6,19 +6,34 @@ This repository contains a CPU emulator in Go. The emulator is
 intended to be extensible to different CPUs, though my initial
 intention is only to emulate the Intel 8008.
 
+This project is the result of a personal challenge to myself to
+write a CPU emulator, in go, in one day. I pulled it off, but it was
+one really long day... :)
+
 In September 2025 I extended the emulator to support the 4004
 as well as the subset of instructions that are common between
 the 4004 and 4040.
 
-This project is the result of a personal challenge to myself to
-write a CPU emulator, in go, in one day. I pulled it off, but it was
-one really long day... :)
+In March 2026 I extended the emulator to support the Z80, and
+more-or-less the 8080 and 8085 as well.
 
 ## Hardware Emulated
 
 * CPU. The CPU reads instructions from memory and executes them. This
   emulation is necessarily specific to a CPU, as CPUs generally have
-  different instruction sets.
+  different instruction sets. Supports the following CPU, in order
+  of implementation:
+   
+  * Intel 8008 - This was CPU I wrote the emulator for.
+
+  * Intel 4004 / 4040 - I wanted to build a 4004 single board computer,
+    and the emulator was my vehicle toward developing software for the
+    SBC.
+
+  * Zilog Z80 / Intel 8080 / Intel 8085 - I got this wild idea one
+    weekend to write my own operating system for the 8080, and
+    implemented the Z80 emulation as a superset of 8080 instruction
+    set. It can emulate an RC2014.
 
 * Memory. Memory may be RAM (Random Access Memory, Read/Write) or ROM
   (Read Only Memory). Generally the emulator would be configured with
@@ -30,7 +45,15 @@ one really long day... :)
 
 * UART. UART is a Universal Asynchronour Receiver Transmitter, and its
   job is basically to provide serial IO. This lets us interact with the
-  running program with a keyboard and screen.
+  running program with a keyboard and screen. There's three UARTs that
+  can be emulated:
+
+  * 8251. Simply called "UART" in the code. The first one I did.
+
+  * ACIA. For the Z80/RC2014 emulation, I added a 6850 ACIA
+
+  * SIO/2. One of my favorites for the RC2014, I added that as an
+    alternative to the SIO/2.
 
 * Memory Mapper. The memory mapper allows you to have more physical memory
   than the CPU's address space, via a bank-switching scheme. It also
@@ -44,11 +67,28 @@ one really long day... :)
   interface. This interface used a series of latches an transceivers
   together with 4265. This 8-bit-bus extender is upported.
 
+* CompactFlash. This was added for Z80/RC2014 emulation. Though it
+  would be really cool to find an 8008 use for the Compactflash...
+
 I should stree that this emulates a real, functional computer. I have
 assembled an 8008-based single board computer with exactly the hardware
-elements listed here. 
+elements listed here.
 
-## 8008 Software Supported
+## Demos
+
+`make demo` - my original 8008 demo.
+
+`make demo4004` - demo of my 4004 single board computer.
+
+`make demo-z80-rc2014` - RC2014 emulation, with 512K RAM/ROM board and ACIA.
+
+## 8008 Emulation
+
+As this CPU emulator began with the goal of 8008 emulation, the README
+talks a bit about it below, to the exclusion of the other CPUs this
+emulator has grown to support.
+
+### 8008 Software Supported
 
 Basically anything that can be started from ROM is supported.
 
@@ -76,13 +116,13 @@ the following built into it:
 All of the programs above are accessible from the monitor by using the
 "S" command. For example S-1 to select Basic, S-2 to select Forth, etc.
 
-## Terminal Emulation
+### Terminal Emulation
 
 The UART is interacted directly from the console. The emulator is a 
 command-line tool. Launch the emulator from a Linux shell, and the UART
 output and input use stdout and stdin respectively.
 
-## Example
+### Example
 
 To run use the monitor rom, do the following:
 
@@ -114,7 +154,7 @@ S - Switch bank and load rom
 >>
 ```
 
-## Makefile
+### Makefile
 
 * `make build`. This will build the emulator as a go binary.
 
@@ -128,7 +168,7 @@ S - Switch bank and load rom
   and not reassemble, but if you modify the tests, you will need
   to have `asl` instealled to assemble the changes.
 
-## Roms
+### Roms
 
 * roms/sbc-8251.rom. Scott's single board computer, using Jim Loos's
   monitor, with Scelbal, Forth, etc.

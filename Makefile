@@ -34,7 +34,7 @@ demo4004: build
 
 .PHONY: demo-z80-rc2014
 demo-z80-rc2014:
-	./build/_output/cpusim-z80-rc2014 -f roms/nostos512k.rom
+	./build/_output/cpusim-z80-rc2014 -f roms/z80/nostos512k.rom --cf-image disks/z80/nostos-cf.img --cf-offset 1024
 
 .PHONY: go-format
 go-format:
