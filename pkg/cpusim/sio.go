@@ -161,7 +161,7 @@ func (s *SIO) Write(address Address, value byte) error {
 	if address == s.DataAddrA || address == s.DataAddrB {
 		err := s.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to serial: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		s.lastCharOut = value
 		return nil

@@ -91,7 +91,7 @@ func (u *UART) Write(address Address, value byte) error {
 	if address == u.DataWriteAddress {
 		err := u.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to serial: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		u.lastCharOut = value
 	}

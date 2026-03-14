@@ -111,7 +111,7 @@ func (a *ACIA) Write(address Address, value byte) error {
 	if address == a.DataAddress {
 		err := a.Serial.WriteByte(value)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error writing to serial: %v", err)
+			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		a.lastCharOut = value
 	}

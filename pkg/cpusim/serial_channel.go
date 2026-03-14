@@ -27,6 +27,11 @@ func (c *ChannelSerial) ReadByte() (byte, error) {
 	return b, nil
 }
 
+// WriteByte sends a byte to the output channel. This deliberately blocks when
+// the buffer is full, providing natural backpressure analogous to a real UART's
+// TDRE (Transmit Data Register Empty) flow control. Dropping bytes would corrupt
+// terminal output (e.g., partial escape sequences), which is worse than briefly
+// stalling the simulated CPU until the consumer catches up.
 func (c *ChannelSerial) WriteByte(b byte) error {
 	c.Out <- b
 	return nil

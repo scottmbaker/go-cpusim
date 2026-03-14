@@ -18,16 +18,18 @@ func NewStdioSerial(rawMode bool) *StdioSerial {
 }
 
 func (s *StdioSerial) ReadByte() (byte, error) {
-	input := make([]byte, 1)
-	_, err := os.Stdin.Read(input)
+	var buf [1]byte
+	_, err := os.Stdin.Read(buf[:])
 	if err != nil {
 		return 0, err
 	}
-	return input[0], nil
+	return buf[0], nil
 }
 
 func (s *StdioSerial) WriteByte(b byte) error {
-	_, err := os.Stdout.Write([]byte{b})
+	var buf [1]byte
+	buf[0] = b
+	_, err := os.Stdout.Write(buf[:])
 	return err
 }
 
