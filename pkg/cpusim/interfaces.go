@@ -29,6 +29,12 @@ type UartInterface interface {
 	RestoreTerminal()
 }
 
+// StatefulDevice can save and restore its mutable state.
+type StatefulDevice interface {
+	SaveState() []byte
+	LoadState([]byte) error
+}
+
 // SerialIO abstracts the byte-level I/O transport for serial devices.
 type SerialIO interface {
 	ReadByte() (byte, error)
