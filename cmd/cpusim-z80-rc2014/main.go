@@ -24,6 +24,8 @@ const (
 	SIO_DATA_A = 0x81
 	SIO_CTRL_B = 0x82
 	SIO_DATA_B = 0x83
+
+	CF_BASE = 0x10
 )
 
 var (
@@ -31,6 +33,9 @@ var (
 	memDebug    bool
 	romFilename string
 	serial      string
+	cfImage     string
+	cfIdentify  string
+	cfOffset    int64
 	rootCmd     = &cobra.Command{
 		Use:   "cpusimz80",
 		Short: "scott's Z80 cpu simulator",
@@ -87,6 +92,34 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		os.Exit(1)
 	}
 
+	// CompactFlash on I/O ports
+	if cfImage != "" {
+		cf := cpusim.NewCompactFlash(sim, "cf", CF_BASE, &cpusim.AlwaysEnabled)
+		err := cf.AttachImage(cfImage, cfOffset)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if cfIdentify != "" {
+			err = cf.LoadIdentify(cfIdentify)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading identify from file '%s': %v\n", cfIdentify, err)
+				os.Exit(1)
+			}
+		} else if cfOffset > 0 {
+			// if the CF is offset and not identify file is given, assume it's an emulatorkit-style image with the identify block at offset 512
+			err = cf.LoadIdentifyFromImage()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error loading identify from image: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Error: --cf-identify is required when using a raw CF image\n")
+		}
+
+		sim.AddPort(cf)
+	}
+
 	// Load ROM file into RAM at 0x0000
 	err := rom.Load(romFilename)
 	if err != nil {
@@ -119,6 +152,9 @@ func main() {
 	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
 	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio)")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
+	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
+	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
+	rootCmd.PersistentFlags().Int64Var(&cfOffset, "cf-offset", 0, "byte offset to sector 0 in CF image (1024 for emulatorkit, 0 for raw)")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()

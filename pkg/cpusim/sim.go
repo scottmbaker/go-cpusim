@@ -47,6 +47,7 @@ const (
 	KIND_INPORT          = "INPORT"
 	KIND_ROMPORT         = "ROMPORT"
 	KIND_RAMPORT         = "RAMPORT"
+	KIND_CF              = "CF"
 	KIND_GENERIC_OUTPORT = "GENERIC_OUTPORT"
 )
 
