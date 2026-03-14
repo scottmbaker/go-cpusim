@@ -28,9 +28,6 @@ func (s *StdioSerial) ReadByte() (byte, error) {
 
 func (s *StdioSerial) WriteByte(b byte) error {
 	_, err := os.Stdout.Write([]byte{b})
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing to stdout: %v", err)
-	}
 	return err
 }
 
