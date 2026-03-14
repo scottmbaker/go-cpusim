@@ -35,6 +35,7 @@ type ACIA struct {
 	ControlAddress Address
 	Enabler        EnablerInterface
 	Keybuffer      []byte
+	mu             sync.Mutex
 	lastCharOut    byte
 	exitEof        bool
 	controlReg     byte
@@ -68,6 +69,9 @@ func (a *ACIA) Read(address Address) (byte, error) {
 	if !a.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	if a.exitEof && len(a.Keybuffer) == 0 {
 		a.Sim.Halt()
@@ -137,7 +141,9 @@ func (a *ACIA) Run() error {
 		if b == 0x03 {
 			a.Sim.CtrlC = true
 		}
+		a.mu.Lock()
 		a.Keybuffer = append(a.Keybuffer, b)
+		a.mu.Unlock()
 	}
 }
 

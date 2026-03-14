@@ -47,6 +47,7 @@ type SIO struct {
 	ControlAddrB     Address
 	Enabler          EnablerInterface
 	Keybuffer        []byte // Input buffer for channel A
+	mu               sync.Mutex
 	lastCharOut      byte
 	exitEof          bool
 	chanA            sioChannel
@@ -89,6 +90,9 @@ func (s *SIO) Read(address Address) (byte, error) {
 	if !s.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	if s.exitEof && len(s.Keybuffer) == 0 {
 		s.Sim.Halt()
@@ -231,7 +235,9 @@ func (s *SIO) Run() error {
 		if b == 0x03 {
 			s.Sim.CtrlC = true
 		}
+		s.mu.Lock()
 		s.Keybuffer = append(s.Keybuffer, b)
+		s.mu.Unlock()
 	}
 }
 

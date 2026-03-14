@@ -9,7 +9,8 @@ import (
 
 // StdioSerial implements SerialIO using os.Stdin and os.Stdout.
 type StdioSerial struct {
-	rawMode bool
+	rawMode    bool
+	rawEnabled bool
 }
 
 func NewStdioSerial(rawMode bool) *StdioSerial {
@@ -38,13 +39,19 @@ func (s *StdioSerial) Start() {
 		err := rawmode.EnableRawMode()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
+		} else {
+			s.rawEnabled = true
 		}
 	}
 }
 
 func (s *StdioSerial) RestoreTerminal() {
+	if !s.rawEnabled {
+		return
+	}
 	err := rawmode.DisableRawMode()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
 	}
+	s.rawEnabled = false
 }

@@ -19,6 +19,7 @@ type UART struct {
 	ControlWriteAddress Address
 	Enabler             EnablerInterface
 	Keybuffer           []byte
+	mu                  sync.Mutex
 	lastCharOut         byte
 	exitEof             bool
 }
@@ -52,6 +53,9 @@ func (u *UART) Read(address Address) (byte, error) {
 	if !u.HasAddress(address) {
 		return 0, &ErrInvalidAddress{Address: address}
 	}
+
+	u.mu.Lock()
+	defer u.mu.Unlock()
 
 	if u.exitEof && len(u.Keybuffer) == 0 {
 		u.Sim.Halt()
@@ -117,7 +121,9 @@ func (u *UART) Run() error {
 		if b == 0x03 {
 			u.Sim.CtrlC = true
 		}
+		u.mu.Lock()
 		u.Keybuffer = append(u.Keybuffer, b)
+		u.mu.Unlock()
 	}
 }
 
