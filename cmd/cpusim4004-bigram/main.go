@@ -7,13 +7,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/scottmbaker/gocpusim/pkg/cpusim"
-	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu4004"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/scottmbaker/gocpusim/pkg/cpusim"
+	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu4004"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -66,12 +67,12 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	// We will attach it to the 4289's ROM port.
 
 	// Hi mapper for A14..A17. It uses addresses 0x04 - 0x07 (is this shift-lefted? why? shouldn't it be 0x40 to 0x70?).
-	mapper2 := cpusim.New74670(sim, "mapper2", 0x04, cpusim.A10, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, &cpusim.AlwaysEnabled)
+	mapper2 := cpusim.New74670(sim, "mapper2", 0x04, cpusim.A10, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, &cpusim.AlwaysEnabled, &cpusim.AlwaysEnabled)
 	mapper2.FilterMemoryKind(cpusim.KIND_ROM)
 	sim.AddMapper(mapper2)
 
 	// Lo mapper for A10..A13. Do this after the hi mapper, otherwise lo mapper changing A10 will break hi mapper
-	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled)
+	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled, &cpusim.AlwaysEnabled)
 	mapper.FilterMemoryKind(cpusim.KIND_ROM)
 	sim.AddMapper(mapper)
 

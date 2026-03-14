@@ -7,11 +7,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu4004"
 	"github.com/spf13/cobra"
-	"os"
-	"sync"
 )
 
 const (
@@ -41,7 +42,7 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 
 	// Setup a mapper for the ROM. It will only filter KIND_ROM devices.
 	// We will attach it to the 4289's ROM port.
-	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled)
+	mapper := cpusim.New74670(sim, "mapper", 0x00, cpusim.A10, cpusim.D0, cpusim.A10, cpusim.A11, cpusim.A12, cpusim.A13, &cpusim.AlwaysEnabled, &cpusim.AlwaysEnabled)
 	mapper.FilterMemoryKind(cpusim.KIND_ROM)
 	sim.AddMapper(mapper)
 

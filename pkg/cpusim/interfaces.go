@@ -1,5 +1,7 @@
 package cpusim
 
+import "sync"
+
 type CpuInterface interface {
 	SetReg(register int, value byte) error
 	GetReg(register int) (byte, error)
@@ -20,4 +22,9 @@ type MemoryInterface interface {
 type MapperInterface interface {
 	Map(address Address) (Address, error)
 	MatchMemory(mem MemoryInterface) bool
+}
+
+type UartInterface interface {
+	Start(wg *sync.WaitGroup)
+	RestoreTerminal()
 }

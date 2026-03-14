@@ -16,7 +16,6 @@ import (
  * Lacking coverage:
  *   - RDR (read rom port)
  *   - WRR (write rom port)
- *   - WMP (write to memory port)
  *   - ADM (add from memory)
  *   - SBM (subtract from memory)
  */

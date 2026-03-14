@@ -46,6 +46,18 @@ func (e *ErrReadOnly) Error() string {
 	}
 }
 
+type ErrWriteOnly struct {
+	Device DeviceInterface
+}
+
+func (e *ErrWriteOnly) Error() string {
+	if e.Device != nil {
+		return fmt.Sprintf("Device %s is write-only", e.Device.GetName())
+	} else {
+		return "Device is write-only"
+	}
+}
+
 type ErrInvalidOpcode struct {
 	Device DeviceInterface
 	Opcode byte

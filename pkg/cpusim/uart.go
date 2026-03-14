@@ -7,6 +7,9 @@ import (
 	"sync"
 )
 
+// UART implements an Intel 8251 USART.
+// Status register bits: bit 0 = TxReady (always set), bit 1 = RxReady.
+// Data and control/status use separate configurable addresses.
 type UART struct {
 	Sim                 *CpuSim
 	Name                string

@@ -7,11 +7,12 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu8008"
 	"github.com/spf13/cobra"
-	"os"
-	"sync"
 )
 
 const (
@@ -86,7 +87,7 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	 */
 
 	ramRomEnable := cpusim.NewEnableBit()
-	mapper := cpusim.New74670(sim, "mapper", 0x0C, cpusim.A12, cpusim.D0, cpusim.A12, cpusim.A13, cpusim.A14, cpusim.A15, &cpusim.AlwaysEnabled)
+	mapper := cpusim.New74670(sim, "mapper", 0x0C, cpusim.A12, cpusim.D0, cpusim.A12, cpusim.A13, cpusim.A14, cpusim.A15, &cpusim.AlwaysEnabled, &cpusim.AlwaysEnabled)
 	mapper.ConnectEnableBit(7, ramRomEnable)
 	sim.AddMapper(mapper)
 	sim.AddPort(mapper)

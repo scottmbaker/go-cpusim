@@ -38,13 +38,16 @@ const (
 	D6 = 6
 	D7 = 7
 
-	KIND_RAM     = "RAM"
-	KIND_ROM     = "ROM"
-	KIND_MAPPER  = "MAPPER"
-	KIND_UART    = "UART"
-	KIND_INPORT  = "INPORT"
-	KIND_ROMPORT = "ROMPORT"
-	KIND_RAMPORT = "RAMPORT"
+	KIND_RAM             = "RAM"
+	KIND_ROM             = "ROM"
+	KIND_MAPPER          = "MAPPER"
+	KIND_UART            = "UART"
+	KIND_ACIA            = "ACIA"
+	KIND_SIO             = "SIO"
+	KIND_INPORT          = "INPORT"
+	KIND_ROMPORT         = "ROMPORT"
+	KIND_RAMPORT         = "RAMPORT"
+	KIND_GENERIC_OUTPORT = "GENERIC_OUTPORT"
 )
 
 type CpuSim struct {

@@ -17,7 +17,8 @@ type Map670 struct {
 	DestBit            [8]int
 	Contents           [16]byte
 	ConnectedEnableBit [8]*EnableBit
-	Enabler            EnablerInterface
+	Enabler            EnablerInterface // Enabler for the Port read/writes to the mapper
+	MapEnabler         EnablerInterface // Enabler for the Map function to read the contents and set the enable bits. Otherwise, always sets 0.
 	MemoryFilter       string
 }
 
@@ -62,7 +63,14 @@ func (m *Map670) ReadStatus(address Address, statusAddr Address) (byte, error) {
 func (m *Map670) Map(address Address) (Address, error) {
 	addressIn := address
 	index := (address >> m.SourceBit) & m.SourceMask
-	value := m.Contents[index]
+
+	var value byte
+	if m.MapEnabler.Bool() {
+		value = m.Contents[index]
+	} else {
+		value = 0
+	}
+	ceb := -1
 	for i := 0; i < 8; i++ {
 		bitIsSet := (value & (1 << i)) != 0
 		if m.DestBit[i] >= 0 {
@@ -74,11 +82,16 @@ func (m *Map670) Map(address Address) (Address, error) {
 		}
 		if m.ConnectedEnableBit[i] != nil {
 			m.ConnectedEnableBit[i].Set(bitIsSet)
+			if bitIsSet {
+				ceb = 1
+			} else {
+				ceb = 0
+			}
 		}
 	}
 	_ = addressIn
 	if m.Sim.MemDebug {
-		fmt.Printf("Mapper %s <%04X:%02X> index %02X --> %04X\n", m.Name, addressIn, value, index, address)
+		fmt.Printf("Mapper %s <%04X:%02X> index %02X --> %04X, (ceb=%02X)\n", m.Name, addressIn, value, index, address, ceb)
 	}
 	return address, nil
 }
@@ -99,7 +112,7 @@ func (m *Map670) MatchMemory(mem MemoryInterface) bool {
 	return m.MemoryFilter == "" || mem.GetKind() == m.MemoryFilter
 }
 
-func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, destBit0, destBit1, destBit2, destBit3 int, enabler EnablerInterface) *Map670 {
+func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, destBit0, destBit1, destBit2, destBit3 int, enabler EnablerInterface, mapEnabler EnablerInterface) *Map670 {
 	return &Map670{
 		Sim:           sim,
 		Name:          name,
@@ -109,5 +122,20 @@ func New74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, 
 		SourceData:    sourceData,
 		DestBit:       [8]int{destBit0, destBit1, destBit2, destBit3, -1, -1, -1, -1},
 		Enabler:       enabler,
+		MapEnabler:    mapEnabler,
+	}
+}
+
+func NewDual74670(sim *CpuSim, name string, address Address, sourceBit, sourceData, destBit0, destBit1, destBit2, destBit3, destBit4, destBit5, destBit6, destBit7 int, enabler EnablerInterface, mapEnabler EnablerInterface) *Map670 {
+	return &Map670{
+		Sim:           sim,
+		Name:          name,
+		MapperAddress: address,
+		SourceMask:    0x03,
+		SourceBit:     sourceBit,
+		SourceData:    sourceData,
+		DestBit:       [8]int{destBit0, destBit1, destBit2, destBit3, destBit4, destBit5, destBit6, destBit7},
+		Enabler:       enabler,
+		MapEnabler:    mapEnabler,
 	}
 }

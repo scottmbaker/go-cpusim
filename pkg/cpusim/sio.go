@@ -1,0 +1,278 @@
+package cpusim
+
+import (
+	"fmt"
+	"os"
+	"sync"
+
+	"github.com/scottmbaker/gocpusim/pkg/rawmode"
+)
+
+// SIO implements a Zilog Z80-SIO/2 Serial Input/Output controller.
+//
+// The SIO/2 has two independent channels (A and B), each with a data port
+// and a control port, for a total of four I/O addresses.
+//
+// Control registers are accessed via a register pointer scheme:
+//   - Write to control port: first byte selects the write register (WR0-WR7),
+//     subsequent byte is the register value. WR0 bits 0-2 select the register.
+//   - Read from control port: RR0 is read by default. To read other registers,
+//     write WR0 with bits 0-2 selecting the read register, then read.
+//
+// Read Register 0 (RR0) status bits:
+//   - Bit 0: Rx Character Available
+//   - Bit 1: Interrupt Pending (channel A only)
+//   - Bit 2: Tx Buffer Empty
+//   - Bit 3: DCD (active low)
+//   - Bit 4: Sync/Hunt
+//   - Bit 5: CTS (active low)
+//   - Bit 6: Tx Underrun/EOM
+//   - Bit 7: Break/Abort
+//
+// Read Register 1 (RR1) status bits:
+//   - Bit 0: All Sent
+//   - Bits 1-2: Residue Code
+//   - Bit 4: Parity Error
+//   - Bit 5: Rx Overrun Error
+//   - Bit 6: CRC/Framing Error
+//   - Bit 7: End of Frame (SDLC)
+//
+// Channel A is the primary channel with keyboard input. Channel B is a
+// secondary channel that accepts output but has no input source.
+type SIO struct {
+	Sim              *CpuSim
+	Name             string
+	DataAddrA        Address
+	DataAddrB        Address
+	ControlAddrA     Address
+	ControlAddrB     Address
+	Enabler          EnablerInterface
+	Keybuffer        []byte // Input buffer for channel A
+	RawMode          bool
+	lastCharOut      byte
+	exitEof          bool
+	chanA            sioChannel
+	chanB            sioChannel
+}
+
+// sioChannel holds per-channel state for the SIO.
+type sioChannel struct {
+	writeRegs [8]byte // WR0-WR7
+	readRegs  [3]byte // RR0-RR2
+	regPtr    byte    // Next register to read/write (from WR0 bits 0-2)
+}
+
+func (s *SIO) LoadInputFile(filename string) error {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	s.Keybuffer = append(s.Keybuffer, data...)
+	return nil
+}
+
+func (s *SIO) SetExitOnEof(exitEof bool) {
+	s.exitEof = exitEof
+}
+
+func (s *SIO) GetName() string {
+	return s.Name
+}
+
+func (s *SIO) HasAddress(address Address) bool {
+	if !s.Enabler.Bool() {
+		return false
+	}
+	return address == s.DataAddrA || address == s.DataAddrB ||
+		address == s.ControlAddrA || address == s.ControlAddrB
+}
+
+func (s *SIO) Read(address Address) (byte, error) {
+	if !s.HasAddress(address) {
+		return 0, &ErrInvalidAddress{Address: address}
+	}
+
+	if s.exitEof && len(s.Keybuffer) == 0 {
+		s.Sim.Halt()
+	}
+
+	// Data port reads
+	if address == s.DataAddrA {
+		if len(s.Keybuffer) > 0 {
+			value := s.Keybuffer[0]
+			s.Keybuffer = s.Keybuffer[1:]
+			if value == 0x0A {
+				value = 0x0D
+			}
+			return value, nil
+		}
+		return 0, nil
+	}
+	if address == s.DataAddrB {
+		// Channel B has no input source
+		return 0, nil
+	}
+
+	// Control port reads
+	if address == s.ControlAddrA {
+		return s.readControl(&s.chanA, true), nil
+	}
+	if address == s.ControlAddrB {
+		return s.readControl(&s.chanB, false), nil
+	}
+
+	return 0, nil
+}
+
+// readControl reads the selected read register for a channel.
+func (s *SIO) readControl(ch *sioChannel, isChannelA bool) byte {
+	reg := ch.regPtr
+	ch.regPtr = 0 // Reset pointer after read
+
+	switch reg {
+	case 0:
+		// RR0: status
+		var status byte
+		if isChannelA && len(s.Keybuffer) > 0 {
+			status |= 0x01 // Rx Character Available
+		}
+		status |= 0x04 // Tx Buffer Empty (always ready)
+		// DCD=0 (asserted), CTS=0 (asserted)
+		return status
+	case 1:
+		// RR1: All Sent, no errors
+		return 0x01 // All Sent
+	case 2:
+		// RR2: Interrupt vector (channel B only, returns modified vector)
+		return ch.readRegs[2]
+	default:
+		return 0
+	}
+}
+
+func (s *SIO) Write(address Address, value byte) error {
+	if !s.HasAddress(address) {
+		return &ErrInvalidAddress{Address: address}
+	}
+
+	// Data port writes
+	if address == s.DataAddrA || address == s.DataAddrB {
+		_, err := os.Stdout.Write([]byte{value})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error writing to stdout: %v", err)
+		}
+		s.lastCharOut = value
+		return nil
+	}
+
+	// Control port writes
+	if address == s.ControlAddrA {
+		s.writeControl(&s.chanA, value)
+		return nil
+	}
+	if address == s.ControlAddrB {
+		s.writeControl(&s.chanB, value)
+		return nil
+	}
+
+	return nil
+}
+
+// writeControl handles writes to the control port using the register pointer scheme.
+func (s *SIO) writeControl(ch *sioChannel, value byte) {
+	reg := ch.regPtr
+	ch.regPtr = 0 // Reset pointer after write
+
+	if reg == 0 {
+		// Writing to WR0 - bits 0-2 set the register pointer for the next access
+		ch.writeRegs[0] = value
+		ch.regPtr = value & 0x07
+
+		// Handle WR0 command bits (bits 3-5)
+		cmd := (value >> 3) & 0x07
+		switch cmd {
+		case 1:
+			// Point to RR1 for next read
+		case 2:
+			// Reset external/status interrupts
+		case 3:
+			// Channel reset
+			ch.regPtr = 0
+			for i := range ch.writeRegs {
+				ch.writeRegs[i] = 0
+			}
+		case 4:
+			// Enable interrupt on next Rx character
+		case 5:
+			// Reset Tx interrupt pending
+		case 6:
+			// Error reset
+		case 7:
+			// Return from interrupt (channel A only)
+		}
+	} else {
+		// Writing to WR1-WR7
+		ch.writeRegs[reg] = value
+	}
+}
+
+func (s *SIO) WriteStatus(address Address, statusAddr Address, value byte) error {
+	return &ErrNotImplemented{Device: s}
+}
+
+func (s *SIO) ReadStatus(address Address, statusAddr Address) (byte, error) {
+	return 0, &ErrNotImplemented{Device: s}
+}
+
+func (s *SIO) Run() error {
+	for {
+		input := make([]byte, 1)
+		_, err := os.Stdin.Read(input)
+		if err != nil {
+			return err
+		}
+		if input[0] == 0x03 {
+			s.Sim.CtrlC = true
+		}
+		s.Keybuffer = append(s.Keybuffer, input[0])
+	}
+}
+
+func (s *SIO) Start(wg *sync.WaitGroup) {
+	go func() {
+		if s.RawMode {
+			err := rawmode.EnableRawMode()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
+			}
+		}
+		err := s.Run()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "SIO error: %v\n", err)
+		}
+	}()
+}
+
+func (s *SIO) RestoreTerminal() {
+	err := rawmode.DisableRawMode()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
+	}
+}
+
+func (s *SIO) GetKind() string {
+	return KIND_SIO
+}
+
+func NewSIO(sim *CpuSim, name string, dataAddrA, dataAddrB, controlAddrA, controlAddrB Address, enabler EnablerInterface) *SIO {
+	return &SIO{
+		Sim:          sim,
+		Name:         name,
+		DataAddrA:    dataAddrA,
+		DataAddrB:    dataAddrB,
+		ControlAddrA: controlAddrA,
+		ControlAddrB: controlAddrB,
+		Enabler:      enabler,
+		RawMode:      true,
+	}
+}
