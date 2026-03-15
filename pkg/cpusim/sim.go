@@ -3,6 +3,7 @@ package cpusim
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -59,7 +60,7 @@ type CpuSim struct {
 	Mappers      []MapperInterface
 	Throttle    *Throttle
 	IOPollDelay time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
-	emptyPolls  int
+	emptyPolls  atomic.Int32
 	CtrlC        bool
 	Debug        bool
 	MemDebug     bool
@@ -85,7 +86,7 @@ func (sim *CpuSim) SetIPS(ips int64) {
 // or is transmitting should call this so that activity on one UART prevents
 // idle UARTs from triggering poll delays.
 func (sim *CpuSim) IOActivity() {
-	sim.emptyPolls = 0
+	sim.emptyPolls.Store(0)
 }
 
 // IOPoll records an empty status-register read. On the second consecutive
@@ -97,8 +98,7 @@ func (sim *CpuSim) IOPoll() {
 	if sim.IOPollDelay <= 0 {
 		return
 	}
-	sim.emptyPolls++
-	if sim.emptyPolls > 1 {
+	if sim.emptyPolls.Add(1) > 1 {
 		time.Sleep(sim.IOPollDelay)
 	}
 }
