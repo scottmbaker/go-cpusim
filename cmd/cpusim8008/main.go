@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpu8008"
@@ -25,6 +26,8 @@ const (
 var (
 	debug       bool
 	romFilename string
+	ips         int64
+	ioPollDelay time.Duration
 	rootCmd     = &cobra.Command{
 		Use:   "cpusim",
 		Short: "scott's 8008 cpu simulator",
@@ -130,6 +133,11 @@ func mainCommand(cmd *cobra.Command, args []string) {
 
 	sim, uart := newScottSingleBoardComputer()
 
+	if ips > 0 {
+		sim.SetIPS(ips)
+	}
+	sim.IOPollDelay = ioPollDelay
+
 	// start the simulator. It will start executing code immadiately.
 	sim.Start(&wg)
 
@@ -146,6 +154,8 @@ func mainCommand(cmd *cobra.Command, args []string) {
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
+	rootCmd.PersistentFlags().Int64Var(&ips, "ips", 0, "instructions per second throttle (0 = unlimited)")
+	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()

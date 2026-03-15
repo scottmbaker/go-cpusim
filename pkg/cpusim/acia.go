@@ -95,6 +95,11 @@ func (a *ACIA) Read(address Address) (byte, error) {
 		status |= 0x02 // TDRE - always ready to transmit
 		if len(a.Keybuffer) > 0 {
 			status |= 0x01 // RDRF - receive data available
+			a.Sim.IOActivity()
+		} else {
+			a.mu.Unlock()
+			a.Sim.IOPoll()
+			a.mu.Lock()
 		}
 		// DCD=0 (asserted/active), CTS=0 (asserted/active), no errors, no IRQ
 		return status, nil
@@ -114,6 +119,7 @@ func (a *ACIA) Write(address Address, value byte) error {
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		a.lastCharOut = value
+		a.Sim.IOActivity()
 	}
 
 	if address == a.ControlAddress {

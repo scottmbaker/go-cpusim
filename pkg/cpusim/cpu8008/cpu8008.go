@@ -580,6 +580,7 @@ func (cpu *CPU8008) Run() error {
 		if err := cpu.Execute(); err != nil {
 			return err
 		}
+		cpu.Sim.Throttle.Tick()
 	}
 	// never reached
 }

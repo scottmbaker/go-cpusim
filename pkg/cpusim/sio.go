@@ -117,7 +117,15 @@ func (s *SIO) Read(address Address) (byte, error) {
 
 	// Control port reads
 	if address == s.ControlAddrA {
-		return s.readControl(&s.chanA, true), nil
+		status := s.readControl(&s.chanA, true)
+		if status&0x01 != 0 {
+			s.Sim.IOActivity()
+		} else {
+			s.mu.Unlock()
+			s.Sim.IOPoll()
+			s.mu.Lock()
+		}
+		return status, nil
 	}
 	if address == s.ControlAddrB {
 		return s.readControl(&s.chanB, false), nil
@@ -164,6 +172,7 @@ func (s *SIO) Write(address Address, value byte) error {
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		s.lastCharOut = value
+		s.Sim.IOActivity()
 		return nil
 	}
 

@@ -222,6 +222,7 @@ func (cpu *CPUZ80) Run() error {
 		if err := cpu.Execute(); err != nil {
 			return err
 		}
+		cpu.Sim.Throttle.Tick()
 	}
 }
 

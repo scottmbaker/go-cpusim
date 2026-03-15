@@ -76,6 +76,11 @@ func (u *UART) Read(address Address) (byte, error) {
 		value := 0x01 // TXReady is always true
 		if len(u.Keybuffer) > 0 {
 			value |= 0x02 // RXReady is true if there are bytes in the buffer
+			u.Sim.IOActivity()
+		} else {
+			u.mu.Unlock()
+			u.Sim.IOPoll()
+			u.mu.Lock()
 		}
 		return byte(value), nil
 	}
@@ -94,6 +99,7 @@ func (u *UART) Write(address Address, value byte) error {
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		u.lastCharOut = value
+		u.Sim.IOActivity()
 	}
 
 	return nil

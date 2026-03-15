@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 	"github.com/scottmbaker/gocpusim/pkg/cpusim/cpuz80"
@@ -36,6 +37,8 @@ var (
 	cfImage     string
 	cfIdentify  string
 	cfOffset    int64
+	ips         int64
+	ioPollDelay time.Duration
 	rootCmd     = &cobra.Command{
 		Use:   "cpusimz80",
 		Short: "scott's Z80 cpu simulator",
@@ -142,6 +145,11 @@ func mainCommand(cmd *cobra.Command, args []string) {
 
 	sim, uart := newZ80Computer()
 
+	if ips > 0 {
+		sim.SetIPS(ips)
+	}
+	sim.IOPollDelay = ioPollDelay
+
 	sim.Start(&wg)
 	uart.Start(&wg)
 	wg.Wait()
@@ -156,6 +164,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
 	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
 	rootCmd.PersistentFlags().Int64Var(&cfOffset, "cf-offset", 0, "byte offset to sector 0 in CF image (1024 for emulatorkit, 0 for raw)")
+	rootCmd.PersistentFlags().Int64Var(&ips, "ips", 0, "instructions per second throttle (0 = unlimited)")
+	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()
