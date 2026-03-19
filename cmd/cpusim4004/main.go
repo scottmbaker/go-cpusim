@@ -26,6 +26,8 @@ const (
 var (
 	debug       bool
 	romFilename string
+	inFilename  string
+	exitEof     bool
 	ips         int64
 	ioPollDelay time.Duration
 	rootCmd     = &cobra.Command{
@@ -64,7 +66,17 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	sim.AddPort(romPort)
 
 	// Create an 8251 UART
-	serialIO := cpusim.NewStdioSerial(true)
+	var serialIO cpusim.SerialIO
+	if inFilename != "" {
+		fs, err := cpusim.NewFileSerial(inFilename, exitEof)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to open input file '%s': %v\n", inFilename, err)
+			os.Exit(1)
+		}
+		serialIO = fs
+	} else {
+		serialIO = cpusim.NewStdioSerial(true)
+	}
 	uart := cpusim.NewUART(sim, serialIO, "uart", UART_DATA_R, UART_DATA_W, UART_CONTROL_R, UART_CONTROL_W, &cpusim.AlwaysEnabled)
 	b8b.AddPort(uart)
 
@@ -112,6 +124,8 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().Int64Var(&ips, "ips", 0, "instructions per second throttle (0 = unlimited)")
 	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
+	rootCmd.PersistentFlags().StringVarP(&inFilename, "in-file", "t", "", "pre-load UART input from file")
+	rootCmd.PersistentFlags().BoolVarP(&exitEof, "exitEof", "e", false, "exit on text input EOF")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()
