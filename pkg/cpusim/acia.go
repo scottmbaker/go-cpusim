@@ -2,6 +2,7 @@ package cpusim
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -37,21 +38,7 @@ type ACIA struct {
 	Keybuffer      []byte
 	mu             sync.Mutex
 	lastCharOut    byte
-	exitEof        bool
 	controlReg     byte
-}
-
-func (a *ACIA) LoadInputFile(filename string) error {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	a.Keybuffer = append(a.Keybuffer, data...)
-	return nil
-}
-
-func (a *ACIA) SetExitOnEof(exitEof bool) {
-	a.exitEof = exitEof
 }
 
 func (a *ACIA) GetName() string {
@@ -72,10 +59,6 @@ func (a *ACIA) Read(address Address) (byte, error) {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
-	if a.exitEof && len(a.Keybuffer) == 0 {
-		a.Sim.Halt()
-	}
 
 	if address == a.DataAddress {
 		if len(a.Keybuffer) > 0 {
@@ -158,7 +141,11 @@ func (a *ACIA) Start(wg *sync.WaitGroup) {
 		a.Serial.Start()
 		err := a.Run()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ACIA error: %v\n", err)
+			if err == io.EOF {
+				a.Sim.Halt()
+			} else {
+				fmt.Fprintf(os.Stderr, "ACIA error: %v\n", err)
+			}
 		}
 	}()
 }

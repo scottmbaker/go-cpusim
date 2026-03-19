@@ -2,6 +2,7 @@ package cpusim
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -49,7 +50,6 @@ type SIO struct {
 	Keybuffer        []byte // Input buffer for channel A
 	mu               sync.Mutex
 	lastCharOut      byte
-	exitEof          bool
 	chanA            sioChannel
 	chanB            sioChannel
 }
@@ -59,19 +59,6 @@ type sioChannel struct {
 	writeRegs [8]byte // WR0-WR7
 	readRegs  [3]byte // RR0-RR2
 	regPtr    byte    // Next register to read/write (from WR0 bits 0-2)
-}
-
-func (s *SIO) LoadInputFile(filename string) error {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	s.Keybuffer = append(s.Keybuffer, data...)
-	return nil
-}
-
-func (s *SIO) SetExitOnEof(exitEof bool) {
-	s.exitEof = exitEof
 }
 
 func (s *SIO) GetName() string {
@@ -93,10 +80,6 @@ func (s *SIO) Read(address Address) (byte, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if s.exitEof && len(s.Keybuffer) == 0 {
-		s.Sim.Halt()
-	}
 
 	// Data port reads
 	if address == s.DataAddrA {
@@ -255,7 +238,11 @@ func (s *SIO) Start(wg *sync.WaitGroup) {
 		s.Serial.Start()
 		err := s.Run()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "SIO error: %v\n", err)
+			if err == io.EOF {
+				s.Sim.Halt()
+			} else {
+				fmt.Fprintf(os.Stderr, "SIO error: %v\n", err)
+			}
 		}
 	}()
 }

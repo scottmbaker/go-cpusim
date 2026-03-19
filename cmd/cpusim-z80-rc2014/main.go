@@ -33,6 +33,8 @@ var (
 	debug       bool
 	memDebug    bool
 	romFilename string
+	inFilename  string
+	exitEof     bool
 	serial      string
 	cfImage     string
 	cfIdentify  string
@@ -84,7 +86,17 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 	sim.AddPort(speech)
 
 	// UART on I/O ports
-	serialIO := cpusim.NewStdioSerial(true)
+	var serialIO cpusim.SerialIO
+	if inFilename != "" {
+		fs, err := cpusim.NewFileSerial(inFilename, exitEof)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: failed to open input file '%s': %v\n", inFilename, err)
+			os.Exit(1)
+		}
+		serialIO = fs
+	} else {
+		serialIO = cpusim.NewStdioSerial(true)
+	}
 	var uart cpusim.UartInterface
 	if serial == "acia" {
 		acia := cpusim.NewACIA(sim, serialIO, "uart", ACIA_DATA, ACIA_CONTROL, &cpusim.AlwaysEnabled)
@@ -169,6 +181,8 @@ func main() {
 	rootCmd.PersistentFlags().Int64Var(&cfOffset, "cf-offset", 0, "byte offset to sector 0 in CF image (1024 for emulatorkit, 0 for raw)")
 	rootCmd.PersistentFlags().Int64Var(&ips, "ips", 0, "instructions per second throttle (0 = unlimited)")
 	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
+	rootCmd.PersistentFlags().StringVarP(&inFilename, "in-file", "t", "", "pre-load UART input from file")
+	rootCmd.PersistentFlags().BoolVarP(&exitEof, "exitEof", "e", false, "exit on text input EOF")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()

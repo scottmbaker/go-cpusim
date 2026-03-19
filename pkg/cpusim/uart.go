@@ -2,6 +2,7 @@ package cpusim
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -21,20 +22,6 @@ type UART struct {
 	Keybuffer           []byte
 	mu                  sync.Mutex
 	lastCharOut         byte
-	exitEof             bool
-}
-
-func (u *UART) LoadInputFile(filename string) error {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	u.Keybuffer = append(u.Keybuffer, data...)
-	return nil
-}
-
-func (u *UART) SetExitOnEof(exitEof bool) {
-	u.exitEof = exitEof
 }
 
 func (u *UART) GetName() string {
@@ -56,10 +43,6 @@ func (u *UART) Read(address Address) (byte, error) {
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
-
-	if u.exitEof && len(u.Keybuffer) == 0 {
-		u.Sim.Halt()
-	}
 
 	if address == u.DataReadAddress {
 		if len(u.Keybuffer) > 0 {
@@ -138,7 +121,11 @@ func (u *UART) Start(wg *sync.WaitGroup) {
 		u.Serial.Start()
 		err := u.Run()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "UART error: %v\n", err)
+			if err == io.EOF {
+				u.Sim.Halt()
+			} else {
+				fmt.Fprintf(os.Stderr, "UART error: %v\n", err)
+			}
 		}
 	}()
 }
