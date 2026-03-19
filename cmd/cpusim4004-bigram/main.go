@@ -30,7 +30,7 @@ var (
 	debug3       bool
 	debugProfile bool
 	memDebug     bool
-	exitEof      bool
+	noExitEof      bool
 	startAddr    int
 	romFilename  string
 	z3Filename   string
@@ -94,7 +94,7 @@ func newScottSingleBoardComputer() (*cpusim.CpuSim, *cpusim.UART) {
 	// Create an 8251 UART
 	var serialIO cpusim.SerialIO
 	if inFilename != "" {
-		fs, err := cpusim.NewFileSerial(inFilename, exitEof)
+		fs, err := cpusim.NewFileSerial(inFilename, !noExitEof)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to open input file '%s': %v\n", inFilename, err)
 			os.Exit(1)
@@ -199,7 +199,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().StringVarP(&z3Filename, "z3-file", "z", "", "z3 filename")
 	rootCmd.PersistentFlags().StringVarP(&inFilename, "in-file", "t", "", "pre-load UART input from file")
-	rootCmd.PersistentFlags().BoolVarP(&exitEof, "exitEof", "e", false, "exit on text eof")
+	rootCmd.PersistentFlags().BoolVar(&noExitEof, "no-exit", false, "don't exit on EOF when using --in-file, fall through to stdin")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()

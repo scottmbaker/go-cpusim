@@ -38,6 +38,7 @@ type ACIA struct {
 	Keybuffer      []byte
 	mu             sync.Mutex
 	lastCharOut    byte
+	inputEOF       bool
 	controlReg     byte
 }
 
@@ -59,6 +60,10 @@ func (a *ACIA) Read(address Address) (byte, error) {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if a.inputEOF && len(a.Keybuffer) == 0 {
+		a.Sim.Halt()
+	}
 
 	if address == a.DataAddress {
 		if len(a.Keybuffer) > 0 {
@@ -142,7 +147,9 @@ func (a *ACIA) Start(wg *sync.WaitGroup) {
 		err := a.Run()
 		if err != nil {
 			if err == io.EOF {
-				a.Sim.Halt()
+				a.mu.Lock()
+				a.inputEOF = true
+				a.mu.Unlock()
 			} else {
 				fmt.Fprintf(os.Stderr, "ACIA error: %v\n", err)
 			}

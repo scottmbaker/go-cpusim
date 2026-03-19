@@ -22,6 +22,7 @@ type UART struct {
 	Keybuffer           []byte
 	mu                  sync.Mutex
 	lastCharOut         byte
+	inputEOF            bool
 }
 
 func (u *UART) GetName() string {
@@ -43,6 +44,10 @@ func (u *UART) Read(address Address) (byte, error) {
 
 	u.mu.Lock()
 	defer u.mu.Unlock()
+
+	if u.inputEOF && len(u.Keybuffer) == 0 {
+		u.Sim.Halt()
+	}
 
 	if address == u.DataReadAddress {
 		if len(u.Keybuffer) > 0 {
@@ -122,7 +127,9 @@ func (u *UART) Start(wg *sync.WaitGroup) {
 		err := u.Run()
 		if err != nil {
 			if err == io.EOF {
-				u.Sim.Halt()
+				u.mu.Lock()
+				u.inputEOF = true
+				u.mu.Unlock()
 			} else {
 				fmt.Fprintf(os.Stderr, "UART error: %v\n", err)
 			}

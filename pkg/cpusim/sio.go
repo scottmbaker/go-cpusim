@@ -50,6 +50,7 @@ type SIO struct {
 	Keybuffer        []byte // Input buffer for channel A
 	mu               sync.Mutex
 	lastCharOut      byte
+	inputEOF         bool
 	chanA            sioChannel
 	chanB            sioChannel
 }
@@ -80,6 +81,10 @@ func (s *SIO) Read(address Address) (byte, error) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.inputEOF && len(s.Keybuffer) == 0 {
+		s.Sim.Halt()
+	}
 
 	// Data port reads
 	if address == s.DataAddrA {
@@ -239,7 +244,9 @@ func (s *SIO) Start(wg *sync.WaitGroup) {
 		err := s.Run()
 		if err != nil {
 			if err == io.EOF {
-				s.Sim.Halt()
+				s.mu.Lock()
+				s.inputEOF = true
+				s.mu.Unlock()
 			} else {
 				fmt.Fprintf(os.Stderr, "SIO error: %v\n", err)
 			}
