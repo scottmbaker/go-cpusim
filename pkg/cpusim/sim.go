@@ -3,6 +3,8 @@ package cpusim
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 const (
@@ -56,6 +58,9 @@ type CpuSim struct {
 	Memory       []MemoryInterface
 	Ports        []MemoryInterface
 	Mappers      []MapperInterface
+	Throttle    *Throttle
+	IOPollDelay time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
+	emptyPolls  atomic.Int32
 	CtrlC        bool
 	Debug        bool
 	MemDebug     bool
@@ -65,10 +70,36 @@ type CpuSim struct {
 
 func NewCPUSim() *CpuSim {
 	return &CpuSim{
-		CPU:    make([]CpuInterface, 0),
-		Memory: make([]MemoryInterface, 0),
-		Ports:  make([]MemoryInterface, 0),
-		Debug:  true,
+		CPU:      make([]CpuInterface, 0),
+		Memory:   make([]MemoryInterface, 0),
+		Ports:    make([]MemoryInterface, 0),
+		Throttle: NewThrottle(0), // no throttling by default
+		Debug:    true,
+	}
+}
+
+func (sim *CpuSim) SetIPS(ips int64) {
+	sim.Throttle = NewThrottle(ips)
+}
+
+// IOActivity resets the empty-poll counter. Any UART that has data available
+// or is transmitting should call this so that activity on one UART prevents
+// idle UARTs from triggering poll delays.
+func (sim *CpuSim) IOActivity() {
+	sim.emptyPolls.Store(0)
+}
+
+// IOPoll records an empty status-register read. On the second consecutive
+// empty poll it sleeps for IOPollDelay, reducing host CPU usage when the
+// emulated program is spin-waiting for input. The first empty poll is free
+// so that a single status check during a TX loop doesn't stall output.
+// Callers must release their mutex before calling this, as it may sleep.
+func (sim *CpuSim) IOPoll() {
+	if sim.IOPollDelay <= 0 {
+		return
+	}
+	if sim.emptyPolls.Add(1) > 1 {
+		time.Sleep(sim.IOPollDelay)
 	}
 }
 

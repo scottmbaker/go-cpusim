@@ -973,6 +973,7 @@ func (cpu *CPU4004) Run() error {
 		if err := cpu.Execute(); err != nil {
 			return err
 		}
+		cpu.Sim.Throttle.Tick()
 	}
 	// never reached
 }
