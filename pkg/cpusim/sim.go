@@ -40,17 +40,18 @@ const (
 	D6 = 6
 	D7 = 7
 
-	KIND_RAM             = "RAM"
-	KIND_ROM             = "ROM"
-	KIND_MAPPER          = "MAPPER"
-	KIND_UART            = "UART"
-	KIND_ACIA            = "ACIA"
-	KIND_SIO             = "SIO"
-	KIND_INPORT          = "INPORT"
-	KIND_ROMPORT         = "ROMPORT"
-	KIND_RAMPORT         = "RAMPORT"
-	KIND_CF              = "CF"
-	KIND_GENERIC_OUTPORT = "GENERIC_OUTPORT"
+	KIND_RAM                  = "RAM"
+	KIND_ROM                  = "ROM"
+	KIND_MAPPER               = "MAPPER"
+	KIND_UART                 = "UART"
+	KIND_ACIA                 = "ACIA"
+	KIND_SIO                  = "SIO"
+	KIND_INPORT               = "INPORT"
+	KIND_ROMPORT              = "ROMPORT"
+	KIND_RAMPORT              = "RAMPORT"
+	KIND_CF                   = "CF"
+	KIND_GENERIC_OUTPORT      = "GENERIC_OUTPORT"
+	KIND_SP0256_SPEECH_DEVICE = "SP0256A-AL2"
 )
 
 type CpuSim struct {
@@ -58,9 +59,9 @@ type CpuSim struct {
 	Memory       []MemoryInterface
 	Ports        []MemoryInterface
 	Mappers      []MapperInterface
-	Throttle    *Throttle
-	IOPollDelay time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
-	emptyPolls  atomic.Int32
+	Throttle     *Throttle
+	IOPollDelay  time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
+	emptyPolls   atomic.Int32
 	CtrlC        bool
 	Debug        bool
 	MemDebug     bool

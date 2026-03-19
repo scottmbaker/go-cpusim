@@ -80,6 +80,9 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
 	sim.AddMemory(rom)
 
+	speech := cpusim.NewSp0SpeechDevice(sim, "sp0256", 0x40, &cpusim.AlwaysEnabled)
+	sim.AddPort(speech)
+
 	// UART on I/O ports
 	serialIO := cpusim.NewStdioSerial(true)
 	var uart cpusim.UartInterface
