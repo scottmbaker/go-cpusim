@@ -62,7 +62,7 @@ type CpuSim struct {
 	Throttle     *Throttle
 	IOPollDelay  time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
 	emptyPolls   atomic.Int32
-	CtrlC        bool
+	CtrlC        atomic.Bool
 	Debug        bool
 	MemDebug     bool
 	MemoryFilter string

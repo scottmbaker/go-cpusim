@@ -2,6 +2,7 @@ package cpuz80
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
@@ -89,7 +90,7 @@ type CPUZ80 struct {
 	EIPending  bool // EI delays one instruction
 
 	// Internal
-	Halted bool
+	Halted atomic.Bool
 	WZ     uint16 // Internal MEMPTR register
 
 	// Q flag tracking for undocumented SCF/CCF behavior
@@ -127,7 +128,7 @@ func (cpu *CPUZ80) GetName() string {
 }
 
 func (cpu *CPUZ80) Halt() {
-	cpu.Halted = true
+	cpu.Halted.Store(true)
 }
 
 func (cpu *CPUZ80) SetReg(register int, value byte) error {
@@ -209,13 +210,13 @@ func (cpu *CPUZ80) String() string {
 }
 
 func (cpu *CPUZ80) Run() error {
-	cpu.Halted = false
+	cpu.Halted.Store(false)
 	for {
-		if cpu.Sim.CtrlC {
+		if cpu.Sim.CtrlC.Load() {
 			fmt.Println("CPU halted by Ctrl-C")
 			return nil
 		}
-		if cpu.Halted {
+		if cpu.Halted.Load() {
 			fmt.Println("CPU halted")
 			return nil
 		}

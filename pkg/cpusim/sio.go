@@ -39,20 +39,20 @@ import (
 // Channel A is the primary channel with keyboard input. Channel B is a
 // secondary channel that accepts output but has no input source.
 type SIO struct {
-	Sim              *CpuSim
-	Serial           SerialIO
-	Name             string
-	DataAddrA        Address
-	DataAddrB        Address
-	ControlAddrA     Address
-	ControlAddrB     Address
-	Enabler          EnablerInterface
-	Keybuffer        []byte // Input buffer for channel A
-	mu               sync.Mutex
-	lastCharOut      byte
-	inputEOF         bool
-	chanA            sioChannel
-	chanB            sioChannel
+	Sim          *CpuSim
+	Serial       SerialIO
+	Name         string
+	DataAddrA    Address
+	DataAddrB    Address
+	ControlAddrA Address
+	ControlAddrB Address
+	Enabler      EnablerInterface
+	Keybuffer    []byte // Input buffer for channel A
+	mu           sync.Mutex
+	lastCharOut  byte
+	inputEOF     bool
+	chanA        sioChannel
+	chanB        sioChannel
 }
 
 // sioChannel holds per-channel state for the SIO.
@@ -230,7 +230,7 @@ func (s *SIO) Run() error {
 			return err
 		}
 		if b == 0x03 {
-			s.Sim.CtrlC = true
+			s.Sim.CtrlC.Store(true)
 		}
 		s.mu.Lock()
 		s.Keybuffer = append(s.Keybuffer, b)

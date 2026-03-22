@@ -133,7 +133,7 @@ func (a *ACIA) Run() error {
 			return err
 		}
 		if b == 0x03 {
-			a.Sim.CtrlC = true
+			a.Sim.CtrlC.Store(true)
 		}
 		a.mu.Lock()
 		a.Keybuffer = append(a.Keybuffer, b)
