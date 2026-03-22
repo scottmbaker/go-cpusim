@@ -46,6 +46,7 @@ const (
 	KIND_UART                 = "UART"
 	KIND_ACIA                 = "ACIA"
 	KIND_SIO                  = "SIO"
+	KIND_ASCI                 = "ASCI"
 	KIND_INPORT               = "INPORT"
 	KIND_ROMPORT              = "ROMPORT"
 	KIND_RAMPORT              = "RAMPORT"

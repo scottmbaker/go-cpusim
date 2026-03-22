@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync/atomic"
 
 	"github.com/scottmbaker/gocpusim/pkg/rawmode"
 )
@@ -11,10 +12,10 @@ import (
 // FileSerial implements SerialIO by reading from a file, optionally falling
 // through to stdin when the file is exhausted.
 type FileSerial struct {
-	file       io.Reader
+	file       *os.File
 	stdin      bool // true if we should fall through to stdin after file EOF
 	fileEOF    bool // true once file is exhausted
-	rawEnabled bool
+	rawEnabled atomic.Bool
 }
 
 // NewFileSerial creates a FileSerial that reads from the named file.
@@ -37,15 +38,16 @@ func (s *FileSerial) ReadByte() (byte, error) {
 	var buf [1]byte
 
 	if !s.fileEOF {
-		_, err := s.file.Read(buf[:])
-		if err == nil {
+		n, err := s.file.Read(buf[:])
+		if n > 0 {
 			return buf[0], nil
 		}
-		if err != io.EOF {
+		if err != nil && err != io.EOF {
 			return 0, err
 		}
 		// File exhausted
 		s.fileEOF = true
+		s.file.Close()
 		if !s.stdin {
 			return 0, io.EOF
 		}
@@ -54,7 +56,7 @@ func (s *FileSerial) ReadByte() (byte, error) {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error setting terminal to raw mode: %v\n", err)
 		} else {
-			s.rawEnabled = true
+			s.rawEnabled.Store(true)
 		}
 	}
 
@@ -75,12 +77,12 @@ func (s *FileSerial) WriteByte(b byte) error {
 func (s *FileSerial) Start() {}
 
 func (s *FileSerial) RestoreTerminal() {
-	if !s.rawEnabled {
+	if !s.rawEnabled.Load() {
 		return
 	}
 	err := rawmode.DisableRawMode()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error restoring terminal mode: %v\n", err)
 	}
-	s.rawEnabled = false
+	s.rawEnabled.Store(false)
 }
