@@ -26,6 +26,11 @@ const (
 	SIO_CTRL_B = 0x82
 	SIO_DATA_B = 0x83
 
+	SIO_SB_CTRL_A = 0x82
+	SIO_SB_DATA_A = 0x80
+	SIO_SB_CTRL_B = 0x83
+	SIO_SB_DATA_B = 0x81
+
 	ASCI_BASE = 0x00
 
 	CF_BASE = 0x10
@@ -106,6 +111,10 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		uart = acia
 	} else if serial == "sio" {
 		sio := cpusim.NewSIO(sim, serialIO, "uart", SIO_DATA_A, SIO_DATA_B, SIO_CTRL_A, SIO_CTRL_B, &cpusim.AlwaysEnabled)
+		sim.AddPort(sio)
+		uart = sio
+	} else if serial == "sio_sb" {
+		sio := cpusim.NewSIO(sim, serialIO, "uart", SIO_SB_DATA_A, SIO_SB_DATA_B, SIO_SB_CTRL_A, SIO_SB_CTRL_B, &cpusim.AlwaysEnabled)
 		sim.AddPort(sio)
 		uart = sio
 	} else if serial == "asci" {
