@@ -156,7 +156,7 @@ func setupCPU(tc *TestCase) (*CPUZ80, *cpusim.CpuSim, *cpusim.Memory, *TestPort)
 	cpu.IFF2 = s.IFF2 != 0
 	cpu.Q = s.Q
 	cpu.PrevQ = s.Q
-	cpu.Halted = false
+	cpu.Halted.Store(false)
 
 	// EI pending state
 	if s.EI != 0 {

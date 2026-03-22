@@ -2,6 +2,8 @@ package cpu4004
 
 import (
 	"fmt"
+	"sync/atomic"
+
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
 
@@ -13,7 +15,7 @@ type CPU4004 struct {
 	RC         byte           // Register Control, from SRC instruction
 	SP         byte           // Stack pointer
 	PC         uint16         // Program Counter
-	Halted     bool           // Flag to indicate if the CPU is halted
+	Halted     atomic.Bool    // Flag to indicate if the CPU is halted
 	NewStyle   bool           // Flag to indicate if the new style debugging is used
 	Cycles     int            // Cycle counter
 	DebugLine  func(*cpusim.CpuSim)
@@ -712,7 +714,7 @@ func (cpu *CPU4004) Execute() error {
 
 	if opCode == 0x01 {
 		cpu.DebugInstr("HALT-4040")
-		cpu.Halted = true
+		cpu.Halted.Store(true)
 		return nil
 	}
 
@@ -956,17 +958,17 @@ func (cpu *CPU4004) Execute() error {
 }
 
 func (cpu *CPU4004) Halt() {
-	cpu.Halted = true
+	cpu.Halted.Store(true)
 }
 
 func (cpu *CPU4004) Run() error {
-	cpu.Halted = false
+	cpu.Halted.Store(false)
 	for {
-		if cpu.Sim.CtrlC {
+		if cpu.Sim.CtrlC.Load() {
 			fmt.Println("CPU halted by Ctrl-C")
 			return nil
 		}
-		if cpu.Halted {
+		if cpu.Halted.Load() {
 			fmt.Println("CPU halted")
 			return nil
 		}

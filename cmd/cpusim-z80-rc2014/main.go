@@ -34,7 +34,7 @@ var (
 	memDebug    bool
 	romFilename string
 	inFilename  string
-	noExitEof     bool
+	noExitEof   bool
 	serial      string
 	cfImage     string
 	cfIdentify  string

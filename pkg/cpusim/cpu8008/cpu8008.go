@@ -2,6 +2,8 @@ package cpu8008
 
 import (
 	"fmt"
+	"sync/atomic"
+
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
 
@@ -12,7 +14,7 @@ type CPU8008 struct {
 	Stack     [8]uint16
 	SP        byte
 	PC        uint16 // Program Counter
-	Halted    bool   // Flag to indicate if the CPU is halted
+	Halted    atomic.Bool // Flag to indicate if the CPU is halted
 	NewStyle  bool   // Flag to indicate if the new style debugging is used
 }
 
@@ -469,7 +471,7 @@ func (cpu *CPU8008) ExecutePort(port byte) error {
 }
 
 func (cpu *CPU8008) Halt() {
-	cpu.Halted = true
+	cpu.Halted.Store(true)
 }
 
 func (cpu *CPU8008) Execute() error {
@@ -490,7 +492,7 @@ func (cpu *CPU8008) Execute() error {
 	if opCode == 0xFF || opCode == 0x00 || opCode == 0x01 {
 		// make sure to check HALT before other operations because
 		// it overlaps some other opcodes
-		cpu.Halted = true
+		cpu.Halted.Store(true)
 		cpu.DebugInstr("HALT")
 		return nil
 	}
@@ -567,13 +569,13 @@ func (cpu *CPU8008) Execute() error {
 }
 
 func (cpu *CPU8008) Run() error {
-	cpu.Halted = false
+	cpu.Halted.Store(false)
 	for {
-		if cpu.Sim.CtrlC {
+		if cpu.Sim.CtrlC.Load() {
 			fmt.Println("CPU halted by Ctrl-C")
 			return nil
 		}
-		if cpu.Halted {
+		if cpu.Halted.Load() {
 			fmt.Println("CPU halted")
 			return nil
 		}

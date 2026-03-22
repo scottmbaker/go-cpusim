@@ -113,7 +113,7 @@ func (u *UART) Run() error {
 			return err
 		}
 		if b == 0x03 {
-			u.Sim.CtrlC = true
+			u.Sim.CtrlC.Store(true)
 		}
 		u.mu.Lock()
 		u.Keybuffer = append(u.Keybuffer, b)
