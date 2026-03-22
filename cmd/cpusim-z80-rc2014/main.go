@@ -26,6 +26,8 @@ const (
 	SIO_CTRL_B = 0x82
 	SIO_DATA_B = 0x83
 
+	ASCI_BASE = 0x00
+
 	CF_BASE = 0x10
 )
 
@@ -106,8 +108,12 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		sio := cpusim.NewSIO(sim, serialIO, "uart", SIO_DATA_A, SIO_DATA_B, SIO_CTRL_A, SIO_CTRL_B, &cpusim.AlwaysEnabled)
 		sim.AddPort(sio)
 		uart = sio
+	} else if serial == "asci" {
+		asci := cpusim.NewASCI(sim, serialIO, "uart", ASCI_BASE, &cpusim.AlwaysEnabled)
+		sim.AddPort(asci)
+		uart = asci
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia' and 'sio'.\n", serial)
+		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia', 'sio', and 'asci'.\n", serial)
 		os.Exit(1)
 	}
 
@@ -174,7 +180,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
 	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
-	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio)")
+	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio, asci)")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
 	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
