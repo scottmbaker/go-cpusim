@@ -52,6 +52,7 @@ const (
 	KIND_ROMPORT              = "ROMPORT"
 	KIND_RAMPORT              = "RAMPORT"
 	KIND_CF                   = "CF"
+	KIND_FDC                  = "FDC"
 	KIND_GENERIC_OUTPORT      = "GENERIC_OUTPORT"
 	KIND_SP0256_SPEECH_DEVICE = "SP0256A-AL2"
 )
