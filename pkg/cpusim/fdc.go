@@ -18,11 +18,11 @@ import (
 
 const (
 	// Default geometry: 1.44 MB 3.5" HD floppy
-	fdcDefaultCylinders      = 80
-	fdcDefaultHeads          = 2
+	fdcDefaultCylinders       = 80
+	fdcDefaultHeads           = 2
 	fdcDefaultSectorsPerTrack = 18
-	fdcDefaultSectorSize     = 512
-	fdcDefaultSectorSizeCode = 2 // 128 << 2 = 512
+	fdcDefaultSectorSize      = 512
+	fdcDefaultSectorSizeCode  = 2 // 128 << 2 = 512
 
 	// Main Status Register bits
 	fdcMsrD0B = 0x01 // Drive 0 busy (seeking)
@@ -74,28 +74,27 @@ const (
 	fdcDorMOT3  = 0x80 // Motor on drive 3
 
 	// FDC commands (low nibble, some bits are parameter flags)
-	fdcCmdReadData       = 0x06 // MT/MF/SK + 0x06
-	fdcCmdReadDeleted    = 0x0C // MT/MF/SK + 0x0C
-	fdcCmdWriteData      = 0x05 // MT/MF + 0x05
-	fdcCmdWriteDeleted   = 0x09 // MT/MF + 0x09
-	fdcCmdReadTrack      = 0x02 // MF + 0x02
-	fdcCmdReadID         = 0x0A // MF + 0x0A
-	fdcCmdFormatTrack    = 0x0D // MF + 0x0D
-	fdcCmdScanEqual      = 0x11 // MT/MF/SK + 0x11
-	fdcCmdScanLowOrEqual = 0x19 // MT/MF/SK + 0x19
-	fdcCmdScanHighOrEq   = 0x1D // MT/MF/SK + 0x1D
-	fdcCmdRecalibrate    = 0x07
-	fdcCmdSenseInterrupt = 0x08
-	fdcCmdSpecify        = 0x03
+	fdcCmdReadData         = 0x06 // MT/MF/SK + 0x06
+	fdcCmdReadDeleted      = 0x0C // MT/MF/SK + 0x0C
+	fdcCmdWriteData        = 0x05 // MT/MF + 0x05
+	fdcCmdWriteDeleted     = 0x09 // MT/MF + 0x09
+	fdcCmdReadTrack        = 0x02 // MF + 0x02
+	fdcCmdReadID           = 0x0A // MF + 0x0A
+	fdcCmdFormatTrack      = 0x0D // MF + 0x0D
+	fdcCmdScanEqual        = 0x11 // MT/MF/SK + 0x11
+	fdcCmdScanLowOrEqual   = 0x19 // MT/MF/SK + 0x19
+	fdcCmdScanHighOrEq     = 0x1D // MT/MF/SK + 0x1D
+	fdcCmdRecalibrate      = 0x07
+	fdcCmdSenseInterrupt   = 0x08
+	fdcCmdSpecify          = 0x03
 	fdcCmdSenseDriveStatus = 0x04
-	fdcCmdSeek           = 0x0F
+	fdcCmdSeek             = 0x0F
 
 	// FDC phases
 	fdcPhaseIdle    = 0
 	fdcPhaseCommand = 1
 	fdcPhaseExec    = 2
 	fdcPhaseResult  = 3
-
 )
 
 // FDC emulates a WD37C65 / NEC uPD765 floppy disk controller.
@@ -111,49 +110,49 @@ type FDC struct {
 	PortDCR  Address // Configuration Control Register (write)
 
 	// Disk geometry
-	Cylinders      int
-	Heads          int
+	Cylinders       int
+	Heads           int
 	SectorsPerTrack int
-	SectorSize     int
-	SectorSizeCode byte
+	SectorSize      int
+	SectorSizeCode  byte
 
 	// Disk images (up to 4 drives)
 	files [4]*os.File
 
 	// Controller state
-	phase     int
-	msr       byte
-	dor       byte
-	dcr       byte
-	st0       byte
-	st1       byte
-	st2       byte
-	st3       byte
+	phase int
+	msr   byte
+	dor   byte
+	dcr   byte
+	st0   byte
+	st1   byte
+	st2   byte
+	st3   byte
 
 	// Command buffer
-	cmdBuf  [16]byte
-	cmdLen  int
-	cmdPos  int
+	cmdBuf [16]byte
+	cmdLen int
+	cmdPos int
 
 	// Result buffer
-	resBuf  [16]byte
-	resLen  int
-	resPos  int
+	resBuf [16]byte
+	resLen int
+	resPos int
 
 	// Data buffer for sector transfers
-	dataBuf  [16384]byte // big enough for largest sector size
-	dataLen  int
-	dataPos  int
-	dataDir  int // 0 = CPU->FDC (write), 1 = FDC->CPU (read)
+	dataBuf [16384]byte // big enough for largest sector size
+	dataLen int
+	dataPos int
+	dataDir int // 0 = CPU->FDC (write), 1 = FDC->CPU (read)
 
 	// Per-drive state
 	pcn        [4]byte // Present Cylinder Number for each drive
 	pendingSt0 [4]byte // pending ST0 for sense interrupt (0 = no pending)
 
 	// Command parameters (parsed from command bytes)
-	cmdCode   byte
-	multiTrack bool
-	mfm       bool
+	cmdCode     byte
+	multiTrack  bool
+	mfm         bool
 	skipDeleted bool
 }
 
@@ -491,9 +490,9 @@ func (fdc *FDC) execReadData() {
 // readCurrentSector reads the sector specified by the command parameters into dataBuf.
 func (fdc *FDC) readCurrentSector() bool {
 	drive := fdc.cmdBuf[1] & 0x03
-	c := fdc.cmdBuf[2]     // Cylinder
-	h := fdc.cmdBuf[3]     // Head
-	r := fdc.cmdBuf[4]     // Sector (1-based)
+	c := fdc.cmdBuf[2] // Cylinder
+	h := fdc.cmdBuf[3] // Head
+	r := fdc.cmdBuf[4] // Sector (1-based)
 
 	offset := fdc.sectorOffset(c, h, r)
 	if offset < 0 {
@@ -629,6 +628,24 @@ func (fdc *FDC) execReadID() {
 	head := fdc.cmdBuf[1] & 0x04
 	fdc.setupSt012(drive, head != 0)
 
+	if fdc.files[drive] == nil {
+		// No disk in drive
+		fdc.st0 |= fdcSt0IC0 | fdcSt0NR // abnormal termination, not ready
+		fdc.st1 |= fdcSt1MA
+		fdc.resBuf[0] = fdc.st0
+		fdc.resBuf[1] = fdc.st1
+		fdc.resBuf[2] = fdc.st2
+		fdc.resBuf[3] = 0
+		fdc.resBuf[4] = 0
+		fdc.resBuf[5] = 0
+		fdc.resBuf[6] = 0
+		fdc.resLen = 7
+		fdc.resPos = 0
+		fdc.phase = fdcPhaseResult
+		fdc.msr = fdcMsrRQM | fdcMsrDIO | fdcMsrCB
+		return
+	}
+
 	h := byte(0)
 	if head != 0 {
 		h = 1
@@ -638,9 +655,9 @@ func (fdc *FDC) execReadID() {
 	fdc.resBuf[0] = fdc.st0
 	fdc.resBuf[1] = fdc.st1
 	fdc.resBuf[2] = fdc.st2
-	fdc.resBuf[3] = fdc.pcn[drive]   // C
-	fdc.resBuf[4] = h                // H
-	fdc.resBuf[5] = 1                // R (sector 1)
+	fdc.resBuf[3] = fdc.pcn[drive]     // C
+	fdc.resBuf[4] = h                  // H
+	fdc.resBuf[5] = 1                  // R (sector 1)
 	fdc.resBuf[6] = fdc.SectorSizeCode // N
 	fdc.resLen = 7
 	fdc.resPos = 0
@@ -664,6 +681,11 @@ func (fdc *FDC) execFormatTrack() {
 	}
 
 	sc := int(fdc.cmdBuf[3]) // sectors per track to format
+	if sc == 0 {
+		fdc.st0 |= fdcSt0IC0
+		fdc.enterResultPhaseFormat(0, 0, 0, 0)
+		return
+	}
 	// cmdBuf[5] (fill byte) is read by execFormatComplete
 
 	// We need to receive 4 bytes per sector (C, H, R, N) from the CPU
@@ -699,7 +721,13 @@ func (fdc *FDC) execFormatComplete() {
 		if offset < 0 {
 			continue
 		}
-		fdc.files[drive].WriteAt(fillBuf, offset)
+		_, err := fdc.files[drive].WriteAt(fillBuf, offset)
+		if err != nil {
+			fdc.st0 |= fdcSt0IC0
+			fdc.st1 |= fdcSt1DE
+			fdc.enterResultPhaseFormat(lastC, lastH, lastR, lastN)
+			return
+		}
 	}
 
 	fdc.enterResultPhaseFormat(lastC, lastH, lastR, lastN)
@@ -757,7 +785,9 @@ func (fdc *FDC) execSenseDriveStatus() {
 		fdc.st3 |= fdcSt3HD
 	}
 	fdc.st3 |= fdcSt3TS // two sided
-	fdc.st3 |= fdcSt3RY // ready
+	if fdc.files[drive] != nil {
+		fdc.st3 |= fdcSt3RY // ready only when disk is present
+	}
 	if fdc.pcn[drive] == 0 {
 		fdc.st3 |= fdcSt3T0
 	}
