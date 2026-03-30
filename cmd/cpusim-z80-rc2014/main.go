@@ -31,7 +31,7 @@ const (
 	SIO_SB_CTRL_B = 0x83
 	SIO_SB_DATA_B = 0x81
 
-	ASCI_BASE = 0x00
+	ASCI_BASE = 0xC0
 
 	SCC_CTRL_A = 0x80
 	SCC_DATA_A = 0x81
@@ -44,6 +44,11 @@ const (
 	SCC_SB_DATA_B = 0x82
 
 	CF_BASE = 0x10
+
+	FDC_PORT_MSR  = 0x50 // Main Status Register (read)
+	FDC_PORT_DATA = 0x51 // Data Register (read/write)
+	FDC_PORT_DOR  = 0x58 // Digital Output Register (write)
+	FDC_PORT_DCR  = 0x48 // Configuration Control Register (write)
 )
 
 var (
@@ -56,6 +61,7 @@ var (
 	cfImage     string
 	cfIdentify  string
 	cfOffset    int64
+	fdcImage    string
 	ips         int64
 	ioPollDelay time.Duration
 	rootCmd     = &cobra.Command{
@@ -99,7 +105,7 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
 	sim.AddMemory(rom)
 
-	speech := cpusim.NewSp0SpeechDevice(sim, "sp0256", 0x40, &cpusim.AlwaysEnabled)
+	speech := cpusim.NewSp0SpeechDevice(sim, "sp0256", 0x20, &cpusim.AlwaysEnabled)
 	sim.AddPort(speech)
 
 	// UART on I/O ports
@@ -172,6 +178,17 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		sim.AddPort(cf)
 	}
 
+	// Floppy disk controller on I/O ports
+	if fdcImage != "" {
+		fdc := cpusim.NewFDC(sim, "fdc", FDC_PORT_MSR, FDC_PORT_DATA, FDC_PORT_DOR, FDC_PORT_DCR, &cpusim.AlwaysEnabled)
+		err := fdc.AttachImage(0, fdcImage)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		sim.AddPort(fdc)
+	}
+
 	// Load ROM file into RAM at 0x0000
 	err := rom.Load(romFilename)
 	if err != nil {
@@ -212,6 +229,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
 	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
 	rootCmd.PersistentFlags().Int64Var(&cfOffset, "cf-offset", 0, "byte offset to sector 0 in CF image (1024 for emulatorkit, 0 for raw)")
+	rootCmd.PersistentFlags().StringVar(&fdcImage, "fdc-image", "", "floppy disk image file (raw, default geometry 1.44MB)")
 	rootCmd.PersistentFlags().Int64Var(&ips, "ips", 0, "instructions per second throttle (0 = unlimited)")
 	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
 	rootCmd.PersistentFlags().StringVarP(&inFilename, "in-file", "t", "", "pre-load UART input from file")
