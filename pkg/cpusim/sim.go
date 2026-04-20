@@ -55,6 +55,7 @@ const (
 	KIND_FDC                  = "FDC"
 	KIND_GENERIC_OUTPORT      = "GENERIC_OUTPORT"
 	KIND_SP0256_SPEECH_DEVICE = "SP0256A-AL2"
+	KIND_16550                = "16550"
 )
 
 type CpuSim struct {
