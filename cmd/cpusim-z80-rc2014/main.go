@@ -43,6 +43,8 @@ const (
 	SCC_SB_CTRL_B = 0x80
 	SCC_SB_DATA_B = 0x82
 
+	UART16550_BASE = 0x68
+
 	CF_BASE = 0x10
 
 	FDC_PORT_MSR  = 0x50 // Main Status Register (read)
@@ -64,6 +66,8 @@ var (
 	fdcImage    string
 	ips         int64
 	ioPollDelay time.Duration
+	fixed32K    bool
+	mapperKind  string
 	rootCmd     = &cobra.Command{
 		Use:   "cpusimz80",
 		Short: "scott's Z80 cpu simulator",
@@ -81,29 +85,63 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 	cpu.PortAddressMask = 0xFF // Use 8-bit port addresses for Z80
 	sim.AddCPU(cpu)
 
-	mapEnable := cpusim.NewEnableBit()
+	var rom *cpusim.Memory
 
-	// ZETA-2 style memory mapper
-	// Port 0x78-0x7B are the page select bits for the mapper. Port 0x7C bit 0 is the enable bit for the mapper.
-	// D6 of the mapper output is used as the enable for the RAM/ROM. When low, ROM is selected. When high, RAM is selected.
-	ramRomEnable := cpusim.NewEnableBit()
-	mapper := cpusim.NewDual74670(sim, "mapper-lo", 0x78, cpusim.A14, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, cpusim.A18, -1, -1, -1, &cpusim.AlwaysEnabled, &mapEnable.HiEnable)
-	mapper.ConnectEnableBit(5, ramRomEnable)
-	sim.AddMapper(mapper)
-	sim.AddPort(mapper)
+	if fixed32K {
+		// backward compatibility for --fixed-32k flag, which overrides --mapper
+		mapperKind = "none"
+	}
 
-	// When a "1" is written to D0 in the latch, the memory mapper should be enabled
-	mapperEnableLatch := cpusim.NewGenericOutputPort(sim, "mapper-enable-latch", 0x7C, 0, &cpusim.AlwaysEnabled)
-	mapperEnableLatch.ConnectEnableBit(0, mapEnable)
-	sim.AddPort(mapperEnableLatch)
+	switch mapperKind {
+	case "none":
+		// 32KB ROM
+		rom = cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFF, 15, true, &cpusim.AlwaysEnabled)
+		sim.AddMemory(rom)
 
-	// 512KB RAM
-	ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x7FFFF, 19, false, &ramRomEnable.HiEnable)
-	sim.AddMemory(ram)
+		// 32KB RAM
+		ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x8000, 0xFFFF, 15, false, &cpusim.AlwaysEnabled)
+		sim.AddMemory(ram)
+	case "zeta2":
+		mapEnable := cpusim.NewEnableBit()
+		// ZETA-2 style memory mapper
+		// Port 0x78-0x7B are the page select bits for the mapper. Port 0x7C bit 0 is the enable bit for the mapper.
+		// D6 of the mapper output is used as the enable for the RAM/ROM. When low, ROM is selected. When high, RAM is selected.
+		ramRomEnable := cpusim.NewEnableBit()
+		mapper := cpusim.NewDual74670(sim, "mapper-lo", 0x78, cpusim.A14, cpusim.D0, cpusim.A14, cpusim.A15, cpusim.A16, cpusim.A17, cpusim.A18, -1, -1, -1, &cpusim.AlwaysEnabled, &mapEnable.HiEnable)
+		mapper.ConnectEnableBit(5, ramRomEnable)
+		sim.AddMapper(mapper)
+		sim.AddPort(mapper)
 
-	// 512KB ROM
-	rom := cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
-	sim.AddMemory(rom)
+		// When a "1" is written to D0 in the latch, the memory mapper should be enabled
+		mapperEnableLatch := cpusim.NewGenericOutputPort(sim, "mapper-enable-latch", 0x7C, 0, &cpusim.AlwaysEnabled)
+		mapperEnableLatch.ConnectEnableBit(0, mapEnable)
+		sim.AddPort(mapperEnableLatch)
+
+		// 512KB RAM
+		ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x7FFFF, 19, false, &ramRomEnable.HiEnable)
+		sim.AddMemory(ram)
+
+		// 512KB ROM
+		rom = cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
+		sim.AddMemory(rom)
+	case "sc714":
+		// SC714 differs from Zeta2 memory mapper in that it only supports mapping a single 32K window in the bottom 32K of address space
+		ramRomEnable := cpusim.NewEnableBit()
+		mapper := cpusim.NewSC714(sim, "mapper", 0x78, ramRomEnable, &cpusim.AlwaysEnabled, &cpusim.AlwaysEnabled)
+		sim.AddMapper(mapper)
+		sim.AddPort(mapper)
+
+		// 512KB RAM
+		ram := cpusim.NewMemory(sim, "ram", cpusim.KIND_RAM, 0x0000, 0x7FFFF, 19, false, &ramRomEnable.HiEnable)
+		sim.AddMemory(ram)
+
+		// 512KB ROM
+		rom = cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
+		sim.AddMemory(rom)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: invalid mapper '%s'. Valid options are 'none', 'zeta2', or 'sc714'.\n", mapperKind)
+		os.Exit(1)
+	}
 
 	speech := cpusim.NewSp0SpeechDevice(sim, "sp0256", 0x20, &cpusim.AlwaysEnabled)
 	sim.AddPort(speech)
@@ -145,8 +183,12 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		scc := cpusim.NewSCC(sim, serialIO, "uart", SCC_SB_DATA_A, SCC_SB_DATA_B, SCC_SB_CTRL_A, SCC_SB_CTRL_B, &cpusim.AlwaysEnabled)
 		sim.AddPort(scc)
 		uart = scc
+	} else if serial == "16550" {
+		u16550 := cpusim.NewUART16550(sim, serialIO, "uart", UART16550_BASE, &cpusim.AlwaysEnabled)
+		sim.AddPort(u16550)
+		uart = u16550
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia', 'sio', 'asci', and 'scc'.\n", serial)
+		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia', 'sio', 'sio_sb', 'asci', 'scc', 'scc_sb', and '16550'.\n", serial)
 		os.Exit(1)
 	}
 
@@ -224,7 +266,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
 	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
-	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio, sio_sb, asci, scc)")
+	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio, sio_sb, asci, scc, scc_sb, 16550)")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
 	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
@@ -234,6 +276,8 @@ func main() {
 	rootCmd.PersistentFlags().DurationVar(&ioPollDelay, "io-poll-delay", 0, "delay when polling serial with no data available (e.g. 1ms)")
 	rootCmd.PersistentFlags().StringVarP(&inFilename, "in-file", "t", "", "pre-load UART input from file")
 	rootCmd.PersistentFlags().BoolVar(&noExitEof, "no-exit", false, "don't exit on EOF when using --in-file, fall through to stdin")
+	rootCmd.PersistentFlags().BoolVar(&fixed32K, "fixed-32k", false, "use flat 32K ROM + 32K RAM memory layout (no mapper). overrides --mapper if set.")
+	rootCmd.PersistentFlags().StringVar(&mapperKind, "mapper", "zeta2", "choose memory mapper -- none, zeta2, or sc714")
 	rootCmd.Run = mainCommand
 
 	err := rootCmd.Execute()
