@@ -138,6 +138,9 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		// 512KB ROM
 		rom = cpusim.NewMemory(sim, "rom", cpusim.KIND_ROM, 0x0000, 0x7FFFF, 19, true, &ramRomEnable.LoEnable)
 		sim.AddMemory(rom)
+	default:
+		fmt.Fprintf(os.Stderr, "Error: invalid mapper '%s'. Valid options are 'none', 'zeta2', or 'sc714'.\n", mapperKind)
+		os.Exit(1)
 	}
 
 	speech := cpusim.NewSp0SpeechDevice(sim, "sp0256", 0x20, &cpusim.AlwaysEnabled)
@@ -185,7 +188,7 @@ func newZ80Computer() (*cpusim.CpuSim, cpusim.UartInterface) {
 		sim.AddPort(u16550)
 		uart = u16550
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia', 'sio', 'asci', 'scc', and '16550'.\n", serial)
+		fmt.Fprintf(os.Stderr, "Error: invalid serial device type '%s'. Valid options are 'acia', 'sio', 'sio_sb', 'asci', 'scc', 'scc_sb', and '16550'.\n", serial)
 		os.Exit(1)
 	}
 
@@ -263,7 +266,7 @@ func mainCommand(cmd *cobra.Command, args []string) {
 func main() {
 	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug messages")
 	rootCmd.PersistentFlags().BoolVarP(&memDebug, "memDebug", "m", false, "memory debug messages")
-	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio, sio_sb, asci, scc, 16550)")
+	rootCmd.PersistentFlags().StringVarP(&serial, "serial", "s", "acia", "type of serial device to use (acia, sio, sio_sb, asci, scc, scc_sb, 16550)")
 	rootCmd.PersistentFlags().StringVarP(&romFilename, "rom-file", "f", "", "rom filename")
 	rootCmd.PersistentFlags().StringVar(&cfImage, "cf-image", "", "CompactFlash disk image file")
 	rootCmd.PersistentFlags().StringVar(&cfIdentify, "cf-identify", "", "CompactFlash identify block file (512 bytes)")
