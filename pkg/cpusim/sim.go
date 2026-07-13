@@ -59,27 +59,33 @@ const (
 )
 
 type CpuSim struct {
-	CPU          []CpuInterface
-	Memory       []MemoryInterface
-	Ports        []MemoryInterface
-	Mappers      []MapperInterface
-	Throttle     *Throttle
-	IOPollDelay  time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
-	emptyPolls   atomic.Int32
-	CtrlC        atomic.Bool
-	Debug        bool
-	MemDebug     bool
-	MemoryFilter string
-	PortFilter   string
+	CPU             []CpuInterface
+	Memory          []MemoryInterface
+	Ports           []MemoryInterface
+	Mappers         []MapperInterface
+	Throttle        *Throttle
+	IOPollDelay     time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
+	emptyPolls      atomic.Int32
+	CtrlC           atomic.Bool
+	HostCtrlC       bool // when true, a 0x03 byte from serial input halts the sim (host escape); disable to deliver Ctrl-C to the emulated machine
+	HaltWaitsForInt bool // when true, HALT with interrupts enabled idles waiting for an interrupt; default false ends Run() on HALT (historical behavior)
+	intMu           sync.Mutex
+	intSources      map[string]bool
+	intLine         atomic.Bool
+	Debug           bool
+	MemDebug        bool
+	MemoryFilter    string
+	PortFilter      string
 }
 
 func NewCPUSim() *CpuSim {
 	return &CpuSim{
-		CPU:      make([]CpuInterface, 0),
-		Memory:   make([]MemoryInterface, 0),
-		Ports:    make([]MemoryInterface, 0),
-		Throttle: NewThrottle(0), // no throttling by default
-		Debug:    true,
+		CPU:       make([]CpuInterface, 0),
+		Memory:    make([]MemoryInterface, 0),
+		Ports:     make([]MemoryInterface, 0),
+		Throttle:  NewThrottle(0), // no throttling by default
+		Debug:     true,
+		HostCtrlC: true, // preserve historical stdio behavior
 	}
 }
 
@@ -106,6 +112,29 @@ func (sim *CpuSim) IOPoll() {
 	if sim.emptyPolls.Add(1) > 1 {
 		time.Sleep(sim.IOPollDelay)
 	}
+}
+
+// SetInt asserts or releases the shared maskable-interrupt line (/INT) on
+// behalf of the named device. The line is the OR of all asserting sources,
+// like the open-drain /INT wire on a real bus. Level-triggered: a device
+// should keep its source asserted while its interrupt condition holds.
+func (sim *CpuSim) SetInt(source string, asserted bool) {
+	sim.intMu.Lock()
+	defer sim.intMu.Unlock()
+	if sim.intSources == nil {
+		sim.intSources = make(map[string]bool)
+	}
+	if asserted {
+		sim.intSources[source] = true
+	} else {
+		delete(sim.intSources, source)
+	}
+	sim.intLine.Store(len(sim.intSources) > 0)
+}
+
+// IntAsserted reports whether any device is asserting the /INT line.
+func (sim *CpuSim) IntAsserted() bool {
+	return sim.intLine.Load()
 }
 
 func (sim *CpuSim) SetDebug(debug bool) {

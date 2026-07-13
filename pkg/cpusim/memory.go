@@ -46,7 +46,11 @@ func (mem *Memory) Write(address Address, value byte) error {
 		return &ErrInvalidAddress{Device: mem, Address: address}
 	}
 	if mem.ReadOnly {
-		fmt.Printf("Write attempt to read-only memory at %04X: %02X\n", address, value)
+		// Only log under MemDebug: probing writes to ROM are normal behavior
+		// for some monitors (e.g. SCM's RAM sizing scan).
+		if mem.Sim.MemDebug {
+			fmt.Printf("Write attempt to read-only memory at %04X: %02X\n", address, value)
+		}
 		return &ErrReadOnly{}
 	}
 	index := address - mem.StartAddress

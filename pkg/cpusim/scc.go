@@ -158,7 +158,7 @@ func (s *SCC) Write(address Address, value byte) error {
 	// Data port writes
 	if address == s.DataAddrA || address == s.DataAddrB {
 		err := s.Serial.WriteByte(value)
-		if err != nil {
+		if err != nil && err != io.ErrClosedPipe { // ErrClosedPipe is expected during shutdown
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		s.lastCharOut = value
@@ -229,7 +229,7 @@ func (s *SCC) Run() error {
 		if err != nil {
 			return err
 		}
-		if b == 0x03 {
+		if b == 0x03 && s.Sim.HostCtrlC {
 			s.Sim.CtrlC.Store(true)
 		}
 		s.mu.Lock()

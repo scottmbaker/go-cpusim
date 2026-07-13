@@ -3,6 +3,7 @@ package cpuz80
 import (
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/scottmbaker/gocpusim/pkg/cpusim"
 )
@@ -88,6 +89,7 @@ type CPUZ80 struct {
 	IFF1, IFF2 bool
 	IM         byte
 	EIPending  bool // EI delays one instruction
+	HaltWait   bool // set by the HALT instruction; cleared when an interrupt is accepted
 
 	// Internal
 	Halted atomic.Bool
@@ -213,17 +215,59 @@ func (cpu *CPUZ80) Run() error {
 	cpu.Halted.Store(false)
 	for {
 		if cpu.Sim.CtrlC.Load() {
-			fmt.Println("CPU halted by Ctrl-C")
+			if cpu.Sim.Debug {
+				fmt.Println("CPU halted by Ctrl-C")
+			}
 			return nil
 		}
 		if cpu.Halted.Load() {
-			fmt.Println("CPU halted")
+			if cpu.Sim.Debug {
+				fmt.Println("CPU halted")
+			}
 			return nil
+		}
+		if cpu.Sim.IntAsserted() && cpu.IFF1 && !cpu.EIPending {
+			cpu.serviceInterrupt()
+		}
+		if cpu.HaltWait {
+			// Default (historical) behavior: HALT ends Run() unconditionally.
+			// A HALT with interrupts disabled can never resume, so it also
+			// ends Run() even when HaltWaitsForInt is set. Only a HALT with
+			// interrupts enabled idles waiting for an interrupt, and only when
+			// the sim has opted in.
+			if !cpu.Sim.HaltWaitsForInt || !cpu.IFF1 {
+				// Printed unconditionally (not Debug-gated): the historical
+				// behavior the NostOS test framework's expected output relies on.
+				fmt.Println("CPU halted")
+				return nil
+			}
+			time.Sleep(500 * time.Microsecond) // idle until an interrupt
+			continue
 		}
 		if err := cpu.Execute(); err != nil {
 			return err
 		}
 		cpu.Sim.Throttle.Tick()
+	}
+}
+
+// serviceInterrupt accepts a maskable interrupt. No emulated device places a
+// vector on the bus, which on RC2014-style hardware floats to 0xFF: IM 0
+// therefore executes RST 38h (opcode 0xFF), same as IM 1. IM 2 uses 0xFF as
+// the low vector byte.
+func (cpu *CPUZ80) serviceInterrupt() {
+	cpu.HaltWait = false
+	cpu.IFF1 = false
+	cpu.IFF2 = false
+	cpu.incR()
+	switch cpu.IM {
+	case 2:
+		vec := uint16(cpu.I)<<8 | 0xFF
+		cpu.push(cpu.PC)
+		cpu.PC = cpu.readWord(vec)
+	default: // IM 0 and IM 1
+		cpu.push(cpu.PC)
+		cpu.PC = 0x0038
 	}
 }
 

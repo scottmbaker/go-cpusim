@@ -83,7 +83,7 @@ func (u *UART) Write(address Address, value byte) error {
 
 	if address == u.DataWriteAddress {
 		err := u.Serial.WriteByte(value)
-		if err != nil {
+		if err != nil && err != io.ErrClosedPipe { // ErrClosedPipe is expected during shutdown
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		u.lastCharOut = value
@@ -112,7 +112,7 @@ func (u *UART) Run() error {
 		if err != nil {
 			return err
 		}
-		if b == 0x03 {
+		if b == 0x03 && u.Sim.HostCtrlC {
 			u.Sim.CtrlC.Store(true)
 		}
 		u.mu.Lock()

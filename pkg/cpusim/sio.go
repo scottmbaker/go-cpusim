@@ -94,6 +94,7 @@ func (s *SIO) Read(address Address) (byte, error) {
 			if value == 0x0A {
 				value = 0x0D
 			}
+			s.updateInt()
 			return value, nil
 		}
 		return 0, nil
@@ -134,6 +135,9 @@ func (s *SIO) readControl(ch *sioChannel, isChannelA bool) byte {
 		if isChannelA && len(s.Keybuffer) > 0 {
 			status |= 0x01 // Rx Character Available
 		}
+		if isChannelA && s.irqAsserted() {
+			status |= 0x02 // Interrupt Pending (channel A only)
+		}
 		status |= 0x04 // Tx Buffer Empty (always ready)
 		// DCD=0 (asserted), CTS=0 (asserted)
 		return status
@@ -156,7 +160,7 @@ func (s *SIO) Write(address Address, value byte) error {
 	// Data port writes
 	if address == s.DataAddrA || address == s.DataAddrB {
 		err := s.Serial.WriteByte(value)
-		if err != nil {
+		if err != nil && err != io.ErrClosedPipe { // ErrClosedPipe is expected during shutdown
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		s.lastCharOut = value
@@ -166,15 +170,33 @@ func (s *SIO) Write(address Address, value byte) error {
 
 	// Control port writes
 	if address == s.ControlAddrA {
+		s.mu.Lock()
 		s.writeControl(&s.chanA, value)
+		s.updateInt()
+		s.mu.Unlock()
 		return nil
 	}
 	if address == s.ControlAddrB {
+		s.mu.Lock()
 		s.writeControl(&s.chanB, value)
+		s.mu.Unlock()
 		return nil
 	}
 
 	return nil
+}
+
+// irqAsserted reports whether the channel A receive-interrupt condition
+// holds: WR1 bits 3-4 select an Rx interrupt mode (nonzero = enabled) and
+// data is available. Level semantics; the caller must hold s.mu.
+func (s *SIO) irqAsserted() bool {
+	return s.chanA.writeRegs[1]&0x18 != 0 && len(s.Keybuffer) > 0
+}
+
+// updateInt mirrors the interrupt condition onto the sim's /INT line. The
+// caller must hold s.mu.
+func (s *SIO) updateInt() {
+	s.Sim.SetInt(s.Name, s.irqAsserted())
 }
 
 // writeControl handles writes to the control port using the register pointer scheme.
@@ -212,6 +234,12 @@ func (s *SIO) writeControl(ch *sioChannel, value byte) {
 	} else {
 		// Writing to WR1-WR7
 		ch.writeRegs[reg] = value
+		if reg == 2 {
+			// WR2 is the interrupt vector; it reads back via RR2. Software
+			// (e.g. RomWBW) probes for the SIO by writing WR2 and expecting
+			// the value back from RR2.
+			ch.readRegs[2] = value
+		}
 	}
 }
 
@@ -229,11 +257,12 @@ func (s *SIO) Run() error {
 		if err != nil {
 			return err
 		}
-		if b == 0x03 {
+		if b == 0x03 && s.Sim.HostCtrlC {
 			s.Sim.CtrlC.Store(true)
 		}
 		s.mu.Lock()
 		s.Keybuffer = append(s.Keybuffer, b)
+		s.updateInt()
 		s.mu.Unlock()
 	}
 }
