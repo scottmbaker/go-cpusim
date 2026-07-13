@@ -59,22 +59,23 @@ const (
 )
 
 type CpuSim struct {
-	CPU          []CpuInterface
-	Memory       []MemoryInterface
-	Ports        []MemoryInterface
-	Mappers      []MapperInterface
-	Throttle     *Throttle
-	IOPollDelay  time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
-	emptyPolls   atomic.Int32
-	CtrlC        atomic.Bool
-	HostCtrlC    bool // when true, a 0x03 byte from serial input halts the sim (host escape); disable to deliver Ctrl-C to the emulated machine
-	intMu        sync.Mutex
-	intSources   map[string]bool
-	intLine      atomic.Bool
-	Debug        bool
-	MemDebug     bool
-	MemoryFilter string
-	PortFilter   string
+	CPU             []CpuInterface
+	Memory          []MemoryInterface
+	Ports           []MemoryInterface
+	Mappers         []MapperInterface
+	Throttle        *Throttle
+	IOPollDelay     time.Duration // sleep this long when a UART status poll finds no data; 0 = disabled
+	emptyPolls      atomic.Int32
+	CtrlC           atomic.Bool
+	HostCtrlC       bool // when true, a 0x03 byte from serial input halts the sim (host escape); disable to deliver Ctrl-C to the emulated machine
+	HaltWaitsForInt bool // when true, HALT with interrupts enabled idles waiting for an interrupt; default false ends Run() on HALT (historical behavior)
+	intMu           sync.Mutex
+	intSources      map[string]bool
+	intLine         atomic.Bool
+	Debug           bool
+	MemDebug        bool
+	MemoryFilter    string
+	PortFilter      string
 }
 
 func NewCPUSim() *CpuSim {

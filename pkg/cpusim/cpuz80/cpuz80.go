@@ -230,12 +230,15 @@ func (cpu *CPUZ80) Run() error {
 			cpu.serviceInterrupt()
 		}
 		if cpu.HaltWait {
-			if !cpu.IFF1 {
-				// HALT with interrupts disabled can never resume; treat it
-				// as end-of-program like the pre-interrupt-support behavior.
-				if cpu.Sim.Debug {
-					fmt.Println("CPU halted")
-				}
+			// Default (historical) behavior: HALT ends Run() unconditionally.
+			// A HALT with interrupts disabled can never resume, so it also
+			// ends Run() even when HaltWaitsForInt is set. Only a HALT with
+			// interrupts enabled idles waiting for an interrupt, and only when
+			// the sim has opted in.
+			if !cpu.Sim.HaltWaitsForInt || !cpu.IFF1 {
+				// Printed unconditionally (not Debug-gated): the historical
+				// behavior the NostOS test framework's expected output relies on.
+				fmt.Println("CPU halted")
 				return nil
 			}
 			time.Sleep(500 * time.Microsecond) // idle until an interrupt
