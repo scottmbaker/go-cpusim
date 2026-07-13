@@ -156,7 +156,7 @@ func (a *ASCI) Write(address Address, value byte) error {
 
 	case 0x06, 0x07: // TDR0, TDR1
 		err := a.Serial.WriteByte(value)
-		if err != nil {
+		if err != nil && err != io.ErrClosedPipe { // ErrClosedPipe is expected during shutdown
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		a.lastCharOut = value
@@ -182,7 +182,7 @@ func (a *ASCI) Run() error {
 		if err != nil {
 			return err
 		}
-		if b == 0x03 {
+		if b == 0x03 && a.Sim.HostCtrlC {
 			a.Sim.CtrlC.Store(true)
 		}
 		a.mu.Lock()

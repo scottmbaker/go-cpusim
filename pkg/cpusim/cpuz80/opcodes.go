@@ -322,7 +322,9 @@ func (cpu *CPUZ80) executeUnprefixed(opcode byte) error {
 
 	// LD r,r' block: 0x40-0x7F (except 0x76 which is HALT)
 	case 0x76: // HALT
-		cpu.Halted.Store(true)
+		// Wait for an interrupt (see Run); with IFF1 clear this ends the
+		// program, matching the historical simulator behavior.
+		cpu.HaltWait = true
 		return nil
 
 	case 0x40: // LD B,B

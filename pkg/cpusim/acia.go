@@ -72,12 +72,19 @@ func (a *ACIA) Read(address Address) (byte, error) {
 			if value == 0x0A {
 				value = 0x0D
 			}
+			a.updateInt()
 			return value, nil
 		}
 		return 0, nil
 	}
 
 	if address == a.ControlAddress {
+		// While master reset is asserted (control bits 0-1 == 11), a real
+		// 6850 reports status 0. Software (e.g. RomWBW) probes for the ACIA
+		// by asserting reset and checking that status reads back as zero.
+		if a.controlReg&0x03 == 0x03 {
+			return 0, nil
+		}
 		// Status register
 		var status byte
 		status |= 0x02 // TDRE - always ready to transmit
@@ -89,7 +96,10 @@ func (a *ACIA) Read(address Address) (byte, error) {
 			a.Sim.IOPoll()
 			a.mu.Lock()
 		}
-		// DCD=0 (asserted/active), CTS=0 (asserted/active), no errors, no IRQ
+		if a.irqAsserted() {
+			status |= 0x80 // IRQ - receive interrupt pending
+		}
+		// DCD=0 (asserted/active), CTS=0 (asserted/active), no errors
 		return status, nil
 	}
 
@@ -103,7 +113,7 @@ func (a *ACIA) Write(address Address, value byte) error {
 
 	if address == a.DataAddress {
 		err := a.Serial.WriteByte(value)
-		if err != nil {
+		if err != nil && err != io.ErrClosedPipe { // ErrClosedPipe is expected during shutdown
 			fmt.Fprintf(os.Stderr, "Error writing to serial: %v\n", err)
 		}
 		a.lastCharOut = value
@@ -111,11 +121,28 @@ func (a *ACIA) Write(address Address, value byte) error {
 	}
 
 	if address == a.ControlAddress {
+		a.mu.Lock()
 		a.controlReg = value
-		// Bits 0-1 == 11 means master reset; we accept but ignore it
+		// Bits 0-1 == 11 means master reset; status reads 0 until cleared
+		// (see Read). No other reset side effects are emulated.
+		a.updateInt()
+		a.mu.Unlock()
 	}
 
 	return nil
+}
+
+// irqAsserted reports whether the receive-interrupt condition holds: RIE
+// (control bit 7) set, not in master reset, and data available. Level
+// semantics; the caller must hold a.mu.
+func (a *ACIA) irqAsserted() bool {
+	return a.controlReg&0x80 != 0 && a.controlReg&0x03 != 0x03 && len(a.Keybuffer) > 0
+}
+
+// updateInt mirrors the interrupt condition onto the sim's /INT line. The
+// caller must hold a.mu.
+func (a *ACIA) updateInt() {
+	a.Sim.SetInt(a.Name, a.irqAsserted())
 }
 
 func (a *ACIA) WriteStatus(address Address, statusAddr Address, value byte) error {
@@ -132,11 +159,12 @@ func (a *ACIA) Run() error {
 		if err != nil {
 			return err
 		}
-		if b == 0x03 {
+		if b == 0x03 && a.Sim.HostCtrlC {
 			a.Sim.CtrlC.Store(true)
 		}
 		a.mu.Lock()
 		a.Keybuffer = append(a.Keybuffer, b)
+		a.updateInt()
 		a.mu.Unlock()
 	}
 }
